@@ -13,7 +13,7 @@ class DashboardController extends AbstractController
     public function index(CrawlStatRepository $repository, \Elastic\Elasticsearch\Client $esClient): Response
     {
         $latestStat = $repository->findLatest();
-        $history = $repository->findBy([], ['createdAt' => 'DESC'], 100);
+        $history = $repository->findBy([], ['id' => 'DESC'], 100);
 
         // Fetch cumulative counts from Elasticsearch and DB
         $totalValid = 0;

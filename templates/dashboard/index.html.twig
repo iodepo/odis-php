@@ -111,10 +111,10 @@
 
             <div class="card shadow-sm mt-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Crawl History (Last 100 Runs)</h5>
-                    <form action="{{ path('app_dashboard_clear_stats') }}" method="POST" onsubmit="return confirm('Are you sure you want to clear all crawl statistics and report data? This cannot be undone.');">
+                    <h5 class="mb-0">{{ 'dashboard.crawl_history'|trans }}</h5>
+                    <form action="{{ path('app_dashboard_clear_stats') }}" method="POST" onsubmit="return confirm('{{ 'dashboard.confirm_clear_stats'|trans }}');">
                         <button type="submit" class="btn btn-outline-danger btn-sm">
-                            <i class="fa fa-trash-alt mr-1"></i> Clear All Stats
+                            <i class="fa fa-trash mr-1"></i> {{ 'dashboard.clear_all_stats'|trans }}
                         </button>
                     </form>
                 </div>
@@ -138,6 +138,7 @@
                             <tr>
                                 <td>{{ stat.createdAt|date('Y-m-d H:i:s') }}</td>
                                 <td>
+                                    <i class="fa fa-clock-o mr-1"></i>
                                     <span class="badge badge-secondary">{{ stat.duration|default('0s') }}</span>
                                 </td>
                                 <td>{{ stat.nodesFound }}</td>
@@ -156,7 +157,7 @@
                                 <td class="text-right">
                                     {% if stat.errorDetails is not empty or stat.commandLine is not empty %}
                                         <button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#details-{{ stat.id }}">
-                                            <i class="fa fa-info-circle"></i> Info
+                                            <i class="fa fa-info-circle"></i> {{ 'dashboard.info'|trans }}
                                         </button>
                                     {% else %}
                                         <span class="text-muted small">None</span>
@@ -167,28 +168,29 @@
                             <tr class="collapse" id="details-{{ stat.id }}">
                                 <td colspan="9" class="bg-light">
                                     <div class="p-3">
-                                        <div class="row mb-3">
-                                            <div class="col-md-6">
-                                                <h6 class="font-weight-bold">Execution Period:</h6>
-                                                <div class="small">
-                                                    <strong>Started:</strong> {{ stat.createdAt|date('Y-m-d H:i:s') }}<br>
-                                                    <strong>Finished:</strong> {% if stat.finishedAt %}{{ stat.finishedAt|date('Y-m-d H:i:s') }}{% else %}<span class="badge badge-warning">Running...</span>{% endif %}<br>
-                                                    <strong>Total Duration:</strong> {{ stat.duration|default('0s') }}
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6 class="font-weight-bold">{{ 'dashboard.execution_period'|trans }}:</h6>
+                                    <div class="small">
+                                        <strong>{{ 'dashboard.started'|trans }}:</strong> {{ stat.createdAt|date('Y-m-d H:i:s') }}<br>
+                                        <strong>{{ 'dashboard.finished'|trans }}:</strong> {% if stat.finishedAt %}{{ stat.finishedAt|date('Y-m-d H:i:s') }}{% else %}<span class="badge badge-warning"><i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>{% endif %}<br>
+                                        <strong>{{ 'dashboard.total_duration'|trans }}:</strong> {{ stat.duration|default('0s') }}
+                                    </div>
+                                </div>
+                                </div>
                                         {% if stat.commandLine is not empty %}
-                                            <h6 class="font-weight-bold">Command Used:</h6>
+                                            <h6 class="font-weight-bold">{{ 'dashboard.command_used'|trans }}:</h6>
                                             <div class="bg-dark text-light p-2 rounded mb-3 small">
                                                 <code>{{ stat.commandLine }}</code>
                                             </div>
                                         {% endif %}
                                         
                                         {% if stat.errorDetails is not empty %}
-                                            <h6 class="font-weight-bold">Error Log:</h6>
+                                            <h6 class="font-weight-bold">{{ 'dashboard.error_log'|trans }}:</h6>
                                             <ul class="mb-0 small text-danger">
-                                                {% for error in stat.errorDetails %}
+                                {% for error in stat.errorDetails %}
                                                     <li>
+                                                        <i class="fa fa-exclamation-triangle mr-1"></i>
                                                         {% if error is iterable %}
                                                             {{ error.message|default('Unknown error') }}
                                                         {% else %}
@@ -209,15 +211,15 @@
             </div>
             
             <div class="mt-4 text-muted small">
-                <p><i class="fa fa-clock-o mr-1"></i> Last update: <span id="last-update-time">{{ latestStat.createdAt|date('Y-m-d H:i:s') }}</span></p>
+                <p><i class="fa fa-clock-o mr-1"></i> {{ 'dashboard.last_update'|trans }}: <span id="last-update-time">{{ latestStat.createdAt|date('Y-m-d H:i:s') }}</span></p>
             </div>
 
             <div id="processed-section" class="{% if processedEntries is empty %}d-none{% endif %}">
-                <div class="card shadow-sm mt-5">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Processed ODISCat Entries</h5>
-                        <span id="processed-count" class="badge badge-info">{{ processedEntries|length }} Sources</span>
-                    </div>
+            <div class="card shadow-sm mt-5">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ 'dashboard.processed_odiscat_entries'|trans }}</h5>
+                    <span id="processed-count" class="badge badge-info">{{ processedEntries|length }} {{ 'dashboard.sources'|trans }}</span>
+                </div>
                     <div class="card-body">
                         <div id="processed-entries-container" class="row">
                             {% for entry in processedEntries %}
@@ -232,22 +234,22 @@
                                         </a>
                                     </div>
                                     <div class="row no-gutters text-center border-top pt-2">
-                                        <div class="col-4 border-right">
-                                            <div class="small text-muted">Found</div>
-                                            <div class="font-weight-bold">{{ entry.recordsFound }}</div>
-                                        </div>
-                                        <div class="col-4 border-right">
-                                            <div class="small text-muted text-success">Valid</div>
-                                            <div class="font-weight-bold text-success">{{ entry.validJsonLds }}</div>
-                                        </div>
-                                        <div class="col-4">
-                                            <div class="small text-muted text-danger">Errors</div>
-                                            <div class="font-weight-bold text-danger">{{ entry.errorsCount }}</div>
-                                        </div>
-                                    </div>
-                                    {% if entry.errors is not empty %}
-                                    <div class="mt-2 pt-2 border-top">
-                                        <div class="small font-weight-bold text-muted mb-1">Recent Errors:</div>
+                                <div class="col-4 border-right">
+                                    <div class="small text-muted">{{ 'dashboard.found'|trans }}</div>
+                                    <div class="font-weight-bold">{{ entry.recordsFound }}</div>
+                                </div>
+                                <div class="col-4 border-right">
+                                    <div class="small text-muted text-success">{{ 'dashboard.valid'|trans }}</div>
+                                    <div class="font-weight-bold text-success">{{ entry.validJsonLds }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="small text-muted text-danger">{{ 'dashboard.errors'|trans }}</div>
+                                    <div class="font-weight-bold text-danger">{{ entry.errorsCount }}</div>
+                                </div>
+                            </div>
+                            {% if entry.errors is not empty %}
+                            <div class="mt-2 pt-2 border-top">
+                                <div class="small font-weight-bold text-muted mb-1">{{ 'dashboard.recent_errors'|trans }}:</div>
                                         <ul class="list-unstyled mb-0 small text-danger">
                                             {% for error in entry.errors %}
                                             <li class="text-truncate" title="{% if error is iterable %}{{ error.message|default('') }}{% else %}{{ error }}{% endif %}">
@@ -295,7 +297,7 @@
                     openCollapses.push($(this).attr('id'));
                 });
 
-                $.getJSON('{{ path('app_api_dashboard_status') }}', function(data) {
+                $.getJSON('{{ path('app_api_dashboard_status') }}?t=' + new Date().getTime(), function(data) {
                     if (data.latest) {
                         $('#stat-nodes').text(data.totalNodes);
                         $('#stat-pages').text(data.totalPages);
@@ -305,7 +307,7 @@
                         $('#last-update-time').text(data.latest.createdAt);
 
                         if (data.processedEntries && data.processedEntries.length > 0) {
-                            $('#processed-count').text(data.processedEntries.length + ' Sources');
+                            $('#processed-count').text(data.processedEntries.length + ' {{ 'dashboard.sources'|trans }}');
                             var processedHtml = '';
                             data.processedEntries.forEach(function(entry) {
                                 processedHtml += '<div class="col-md-12 col-lg-6 mb-3">';
@@ -320,22 +322,22 @@
                                 processedHtml += '        </div>';
                                 processedHtml += '        <div class="row no-gutters text-center border-top pt-2">';
                                 processedHtml += '            <div class="col-4 border-right">';
-                                processedHtml += '                <div class="small text-muted">Found</div>';
+                                processedHtml += '                <div class="small text-muted">{{ 'dashboard.found'|trans }}</div>';
                                 processedHtml += '                <div class="font-weight-bold">' + entry.recordsFound + '</div>';
                                 processedHtml += '            </div>';
                                 processedHtml += '            <div class="col-4 border-right">';
-                                processedHtml += '                <div class="small text-muted text-success">Valid</div>';
+                                processedHtml += '                <div class="small text-muted text-success">{{ 'dashboard.valid'|trans }}</div>';
                                 processedHtml += '                <div class="font-weight-bold text-success">' + entry.validJsonLds + '</div>';
                                 processedHtml += '            </div>';
                                 processedHtml += '            <div class="col-4">';
-                                processedHtml += '                <div class="small text-muted text-danger">Errors</div>';
+                                processedHtml += '                <div class="small text-muted text-danger">{{ 'dashboard.errors'|trans }}</div>';
                                 processedHtml += '                <div class="font-weight-bold text-danger">' + entry.errorsCount + '</div>';
                                 processedHtml += '            </div>';
                                 processedHtml += '        </div>';
                                 
                                 if (entry.errors && entry.errors.length > 0) {
                                     processedHtml += '        <div class="mt-2 pt-2 border-top">';
-                                    processedHtml += '            <div class="small font-weight-bold text-muted mb-1">Recent Errors:</div>';
+                                    processedHtml += '            <div class="small font-weight-bold text-muted mb-1">{{ 'dashboard.recent_errors'|trans }}:</div>';
                                     processedHtml += '            <ul class="list-unstyled mb-0 small text-danger">';
                                     entry.errors.forEach(function(error) {
                                         var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
@@ -361,13 +363,14 @@
                     
                     if (data.history && data.history.length > 0) {
                         var html = '';
+                        // Render all history items received from the API (up to 100)
                         data.history.forEach(function(stat) {
                             var collapseId = 'details-' + stat.id;
                             var isShow = openCollapses.indexOf(collapseId) !== -1 ? ' show' : '';
 
                             html += '<tr>';
                             html += '<td>' + stat.createdAt + '</td>';
-                            html += '<td><span class="badge badge-secondary">' + stat.duration + '</span></td>';
+                            html += '<td><i class="fa fa-clock-o mr-1"></i><span class="badge badge-secondary">' + stat.duration + '</span></td>';
                             html += '<td>' + stat.nodesFound + '</td>';
                             html += '<td>' + stat.pagesCrawled + '</td>';
                             html += '<td class="text-success font-weight-bold">' + stat.validJsonLds + '</td>';
@@ -376,7 +379,7 @@
                             html += '<td>' + stat.successRate + '</td>';
                             html += '<td class="text-right">';
                             if (stat.hasErrors || stat.commandLine) {
-                                html += '<button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#' + collapseId + '"><i class="fa fa-info-circle"></i> Info</button>';
+                                html += '<button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#' + collapseId + '"><i class="fa fa-info-circle"></i> {{ 'dashboard.info'|trans }}</button>';
                             } else {
                                 html += '<span class="text-muted small">None</span>';
                             }
@@ -387,29 +390,28 @@
                                 html += '<tr class="collapse' + isShow + '" id="' + collapseId + '">';
                                 html += '<td colspan="9" class="bg-light">';
                                 html += '<div class="p-3">';
-
                                 html += '<div class="row mb-3">';
                                 html += '<div class="col-md-6">';
-                                html += '<h6 class="font-weight-bold">Execution Period:</h6>';
+                                html += '<h6 class="font-weight-bold">{{ 'dashboard.execution_period'|trans }}:</h6>';
                                 html += '<div class="small">';
-                                html += '<strong>Started:</strong> ' + stat.createdAt + '<br>';
-                                html += '<strong>Finished:</strong> ' + (stat.finishedAt ? stat.finishedAt : '<span class="badge badge-warning">Running...</span>') + '<br>';
-                                html += '<strong>Total Duration:</strong> ' + stat.duration;
+                                html += '<strong>{{ 'dashboard.started'|trans }}:</strong> ' + stat.createdAt + '<br>';
+                                html += '<strong>{{ 'dashboard.finished'|trans }}:</strong> ' + (stat.finishedAt ? stat.finishedAt : '<span class="badge badge-warning"><i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>') + '<br>';
+                                html += '<strong>{{ 'dashboard.total_duration'|trans }}:</strong> ' + stat.duration;
                                 html += '</div>';
                                 html += '</div>';
                                 html += '</div>';
                                 
                                 if (stat.commandLine) {
-                                    html += '<h6 class="font-weight-bold">Command Used:</h6>';
+                                    html += '<h6 class="font-weight-bold">{{ 'dashboard.command_used'|trans }}:</h6>';
                                     html += '<div class="bg-dark text-light p-2 rounded mb-3 small"><code>' + stat.commandLine + '</code></div>';
                                 }
 
                                 if (stat.hasErrors) {
-                                    html += '<h6 class="font-weight-bold">Error Log:</h6>';
+                                    html += '<h6 class="font-weight-bold">{{ 'dashboard.error_log'|trans }}:</h6>';
                                     html += '<ul class="mb-0 small text-danger">';
                                     stat.errorDetails.forEach(function(error) {
                                         var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
-                                        html += '<li>' + message + '</li>';
+                                        html += '<li><i class="fa fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
                                     });
                                     html += '</ul>';
                                 }
@@ -424,6 +426,7 @@
             }
             
             // Poll every 5 seconds
+            updateDashboard();
             setInterval(updateDashboard, 5000);
         });
     </script>
