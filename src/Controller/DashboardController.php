@@ -13,7 +13,7 @@ class DashboardController extends AbstractController
     public function index(CrawlStatRepository $repository, \Elastic\Elasticsearch\Client $esClient): Response
     {
         $latestStat = $repository->findLatest();
-        $history = $repository->findBy([], ['createdAt' => 'DESC'], 10);
+        $history = $repository->findBy([], ['createdAt' => 'DESC'], 100);
 
         // Fetch cumulative counts from Elasticsearch and DB
         $totalValid = 0;
@@ -39,5 +39,13 @@ class DashboardController extends AbstractController
             'totalIssues' => $totalIssues,
             'processedEntries' => $processedEntries,
         ]);
+    }
+
+    #[Route('/dashboard/clear-stats', name: 'app_dashboard_clear_stats', methods: ['POST'])]
+    public function clearStats(CrawlStatRepository $repository): Response
+    {
+        $repository->clearStats();
+        $this->addFlash('success', 'All crawl statistics and reports have been cleared.');
+        return $this->redirectToRoute('app_dashboard');
     }
 }

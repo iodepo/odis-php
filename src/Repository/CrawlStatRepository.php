@@ -142,42 +142,29 @@ class CrawlStatRepository extends ServiceEntityRepository
     {
         $stats = $this->createQueryBuilder('s')
             ->select('s.processedEntries')
+            ->where('s.type = :full OR s.type = :master')
+            ->setParameter('full', 'full')
+            ->setParameter('master', 'parallel_master')
             ->getQuery()
             ->getResult();
 
-        $uniqueEntries = [];
+        $allEntries = [];
         foreach ($stats as $stat) {
             if (isset($stat['processedEntries']) && is_array($stat['processedEntries'])) {
                 foreach ($stat['processedEntries'] as $entry) {
-                    $id = $entry['id'];
-                    if (!isset($uniqueEntries[$id])) {
-                        $uniqueEntries[$id] = [
-                            'id' => $id,
-                            'name' => $entry['name'],
-                            'recordsFound' => $entry['recordsFound'] ?? 0,
-                            'validJsonLds' => $entry['validJsonLds'] ?? 0,
-                            'errorsCount' => $entry['errorsCount'] ?? 0,
-                            'errors' => $entry['errors'] ?? []
-                        ];
-                    } else {
-                        // Aggregate data if same entry processed in multiple sessions
-                        $uniqueEntries[$id]['recordsFound'] += ($entry['recordsFound'] ?? 0);
-                        $uniqueEntries[$id]['validJsonLds'] += ($entry['validJsonLds'] ?? 0);
-                        $uniqueEntries[$id]['errorsCount'] += ($entry['errorsCount'] ?? 0);
-                        // Merge errors and keep unique
-                        if (isset($entry['errors']) && is_array($entry['errors'])) {
-                            foreach ($entry['errors'] as $error) {
-                                if (count($uniqueEntries[$id]['errors']) < 10 && !in_array($error, $uniqueEntries[$id]['errors'])) {
-                                    $uniqueEntries[$id]['errors'][] = $error;
-                                }
-                            }
-                        }
-                    }
+                    $allEntries[] = $entry;
                 }
             }
         }
 
-        ksort($uniqueEntries);
-        return array_values($uniqueEntries);
+        return $allEntries;
+    }
+
+    public function clearStats(): int
+    {
+        return $this->createQueryBuilder('s')
+            ->delete()
+            ->getQuery()
+            ->execute();
     }
 }

@@ -42,6 +42,18 @@
                             <span class="text-muted small font-weight-bold text-primary">NEW: Testing with limits:</span><br>
                             <code>php bin/console app:odis:crawl --limit 10</code>
                         </div>
+                        <div class="mb-2">
+                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear index:</span><br>
+                            <code>php bin/console app:odis:crawl --clear-index</code>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear stats & reports:</span><br>
+                            <code>php bin/console app:odis:clear-stats</code>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear EVERYTHING:</span><br>
+                            <code>php bin/console app:odis:clear-stats --all</code>
+                        </div>
                         <div class="mt-2">
                             <span class="text-muted small">Verbose output:</span><br>
                             <code>php bin/console app:odis:crawl -v</code>
@@ -55,6 +67,7 @@
                     <li>If <code>--parallel</code> (or <code>-p</code>) is used, it spawns separate sub-processes for each datasource to speed up the process.</li>
                     <li>The <code>--concurrency</code> (or <code>-c</code>) option controls the maximum number of simultaneous processes (default is 5).</li>
                     <li>If <code>--limit</code> (or <code>-l</code>) is used, it restricts the number of metadata records indexed <strong>per data source</strong>. This is very useful for testing without performing a full crawl.</li>
+                    <li>If <code>--clear-index</code> is used, it deletes and recreates the Elasticsearch index before starting the crawl. <strong>This is mandatory when fixing mapping conflicts.</strong></li>
                     <li>Fetches all data source IDs and metadata from the ODIS-Arch Records API.</li>
                     <li>Analyzes each source for <strong>ODIS-Arch URL</strong> and <strong>ODIS-Arch Type</strong>.</li>
                     <li>Parses <strong>Sitemaps</strong> or direct <strong>Sitegraph</strong> JSON-LD files.</li>
@@ -83,21 +96,26 @@
 
             <section class="mt-5 mb-5">
                 <h3>4. Resetting Project Data</h3>
-                <p>To clear all data and start from scratch, you need to reset both Elasticsearch and the database:</p>
+                <p>To clear all data and start from scratch, you can use the built-in maintenance command or the button on the <a href="{{ path('app_dashboard') }}">Dashboard</a>:</p>
                 <div class="card mb-3 border-danger">
                     <div class="card-body bg-light">
                         <div class="mb-3">
-                            <h6 class="font-weight-bold text-danger">1. Clear Elasticsearch Index:</h6>
-                            <span class="text-muted small">Delete the metadata index:</span><br>
-                            <code>curl -u [USER]:[PASSWORD] -k -X DELETE [URL]/odis_metadata</code>
+                            <h6 class="font-weight-bold text-danger">1. Clear Everything (Index + Stats):</h6>
+                            <span class="text-muted small">Wipe both Elasticsearch and the local database stats:</span><br>
+                            <code>php bin/console app:odis:clear-stats --all</code>
                         </div>
                         <div class="mb-3">
-                            <h6 class="font-weight-bold text-danger">2. Clear Database Stats:</h6>
-                            <span class="text-muted small">Empty the crawl history table:</span><br>
-                            <code>php bin/console doctrine:query:dql "DELETE FROM App\Entity\CrawlStat"</code>
+                            <h6 class="font-weight-bold text-danger">2. Clear ONLY Stats & Reports:</h6>
+                            <span class="text-muted small">Empty the crawl history table but keep the search index:</span><br>
+                            <code>php bin/console app:odis:clear-stats</code>
+                        </div>
+                        <div class="mb-3">
+                            <h6 class="font-weight-bold text-danger">3. Clear ONLY Elasticsearch Index:</h6>
+                            <span class="text-muted small">Delete and recreate the metadata index:</span><br>
+                            <code>php bin/console app:odis:crawl --clear-index --limit 1</code>
                         </div>
                         <div class="mb-0">
-                            <h6 class="font-weight-bold text-danger">3. Clear Log Files:</h6>
+                            <h6 class="font-weight-bold text-danger">4. Clear Log Files:</h6>
                             <span class="text-muted small">Remove any temporary crawl logs:</span><br>
                             <code>rm -f crawl_*.log</code>
                         </div>

@@ -313,6 +313,28 @@ class OdisCrawler
                             'schema:version' => ['type' => 'flattened'],
                             'encodingFormat' => ['type' => 'flattened'],
                             'schema:encodingFormat' => ['type' => 'flattened'],
+                            'startDate' => ['type' => 'flattened'],
+                            'schema:startDate' => ['type' => 'flattened'],
+                            'endDate' => ['type' => 'flattened'],
+                            'schema:endDate' => ['type' => 'flattened'],
+                            'location' => ['type' => 'flattened'],
+                            'schema:location' => ['type' => 'flattened'],
+                            'arrivalBoatTerminal' => ['type' => 'flattened'],
+                            'schema:arrivalBoatTerminal' => ['type' => 'flattened'],
+                            'departureBoatTerminal' => ['type' => 'flattened'],
+                            'schema:departureBoatTerminal' => ['type' => 'flattened'],
+                            'subEvent' => ['type' => 'flattened'],
+                            'schema:subEvent' => ['type' => 'flattened'],
+                            'sdPublisher' => ['type' => 'flattened'],
+                            'schema:sdPublisher' => ['type' => 'flattened'],
+                            'datePublished' => ['type' => 'flattened'],
+                            'schema:datePublished' => ['type' => 'flattened'],
+                            'educationalCredentialAwarded' => ['type' => 'flattened'],
+                            'schema:educationalCredentialAwarded' => ['type' => 'flattened'],
+                            'contactPoint' => ['type' => 'flattened'],
+                            'schema:contactPoint' => ['type' => 'flattened'],
+                            'inLanguage' => ['type' => 'flattened'],
+                            'schema:inLanguage' => ['type' => 'flattened'],
                             '@context' => ['type' => 'flattened']
                         ]
                     ]
@@ -583,9 +605,17 @@ class OdisCrawler
                 preg_match('/failed to parse field \[([^\]]+)\] of type \[([^\]]+)\]/', $message, $matches);
                 $field = $matches[1] ?? 'unknown';
                 $type = $matches[2] ?? 'unknown';
-                return "Mapping conflict for field '$field' (expected $type). Solution: Run the crawl with the '--clear-index' option to reset Elasticsearch mappings.";
+                
+                $solution = "CRITICAL MAPPING CONFLICT: The field '$field' is currently mapped as '$type' in Elasticsearch, but the crawler is trying to send it as a different structure. ";
+                $solution .= "To fix this, you MUST reset your index by running: php bin/console app:odis:crawl --clear-index";
+                
+                if ($type === 'date') {
+                    $solution .= " (Date fields are particularly sensitive to structure changes).";
+                }
+                
+                return $solution;
             }
-            return "Elasticsearch indexing failed due to a mapping conflict or invalid document structure. Solution: Try running with '--clear-index' to reset the index.";
+            return "Elasticsearch indexing failed due to a mapping conflict or invalid document structure. Solution: You MUST run the crawl with the '--clear-index' flag to reset the index and apply new mappings.";
         }
         
         if (str_contains($message, 'Syntax error') || str_contains($message, 'Control character error')) {
@@ -710,7 +740,11 @@ class OdisCrawler
                 elseif (isset($data['hasPart'])) {
                     $items = is_array($data['hasPart']) ? $data['hasPart'] : [$data['hasPart']];
                 }
-                // 4. Single object
+                // 4. JSON-LD @graph
+                elseif (isset($data['@graph']) && is_array($data['@graph'])) {
+                    $items = $data['@graph'];
+                }
+                // 5. Single object
                 else {
                     $items = [$data];
                 }
@@ -729,7 +763,15 @@ class OdisCrawler
                     $polymorphicFields = [
                         'knowsAbout', 'keywords', 'contributor', 'distribution', 'identifier', 'potentialAction', 'hasCourseInstance', 'sameAs', 'variableMeasured', 'includedInDataCatalog',
                         'creator', 'publisher', 'provider', 'funder', 'author', 'about', 'mentions', 'subjectOf', 'spatialCoverage', 'geo', 'license', 'citation', 'version', 'encodingFormat',
-                        'schema:name', 'schema:description', 'schema:keywords', 'schema:creator', 'schema:publisher', 'schema:provider', 'schema:funder', 'schema:author', 'schema:about', 'schema:mentions', 'schema:subjectOf', 'schema:spatialCoverage', 'schema:geo', 'schema:distribution', 'schema:identifier', 'schema:contributor', 'schema:potentialAction', 'schema:hasCourseInstance', 'schema:sameAs', 'schema:variableMeasured', 'schema:includedInDataCatalog', 'schema:license', 'schema:citation', 'schema:version', 'schema:encodingFormat'
+                        'startDate', 'endDate', 'location', 'arrivalBoatTerminal', 'departureBoatTerminal',
+                        'schema:name', 'schema:description', 'schema:keywords', 'schema:creator', 'schema:publisher', 'schema:provider', 'schema:funder', 'schema:author', 'schema:about', 'schema:mentions', 'schema:subjectOf', 'schema:spatialCoverage', 'schema:geo', 'schema:distribution', 'schema:identifier', 'schema:contributor', 'schema:potentialAction', 'schema:hasCourseInstance', 'schema:sameAs', 'schema:variableMeasured', 'schema:includedInDataCatalog', 'schema:license', 'schema:citation', 'schema:version', 'schema:encodingFormat',
+                        'schema:startDate', 'schema:endDate', 'schema:location', 'schema:arrivalBoatTerminal', 'schema:departureBoatTerminal',
+                        'subEvent', 'schema:subEvent',
+                        'sdPublisher', 'schema:sdPublisher',
+                        'datePublished', 'schema:datePublished',
+                        'educationalCredentialAwarded', 'schema:educationalCredentialAwarded',
+                        'contactPoint', 'schema:contactPoint',
+                        'inLanguage', 'schema:inLanguage'
                     ];
                     foreach ($polymorphicFields as $field) {
                         if (isset($item[$field])) {

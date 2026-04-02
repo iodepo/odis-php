@@ -17,7 +17,7 @@ class DashboardApiController extends AbstractController
         $inProgress = $repository->findBy(['status' => 'in_progress'], ['id' => 'DESC'], 1);
         $latestStat = !empty($inProgress) ? $inProgress[0] : $repository->findLatest();
 
-        $history = $repository->findBy([], ['id' => 'DESC'], 10);
+        $history = $repository->findBy([], ['id' => 'DESC'], 100);
 
         $totalValid = 0;
         try {

@@ -63,9 +63,14 @@ class SearchController extends AbstractController
                         'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'hasCourseInstance.*',
                         'variableMeasured.*', 'distribution.*', 'subjectOf.*', 'about.*', 'funder.*', 'publisher.*',
                         'spatialCoverage.*', 'geo.*', 'potentialAction.*', 'identifier.*', 'image.*', 'mentions.*',
+                        'startDate', 'endDate', 'location', 'arrivalBoatTerminal.*', 'departureBoatTerminal.*',
                         'schema:creator.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', 'schema:author.*',
                         'schema:distribution.*', 'schema:subjectOf.*', 'schema:about.*', 'schema:spatialCoverage.*',
-                        'schema:geo.*', 'schema:potentialAction.*', 'schema:identifier.*', 'schema:mentions.*'
+                        'schema:geo.*', 'schema:potentialAction.*', 'schema:identifier.*', 'schema:mentions.*',
+                        'schema:startDate', 'schema:endDate', 'schema:location', 'schema:arrivalBoatTerminal.*', 'schema:departureBoatTerminal.*',
+                        'subEvent.*', 'schema:subEvent.*', 'sdPublisher.*', 'schema:sdPublisher.*',
+                        'datePublished', 'schema:datePublished', 'educationalCredentialAwarded', 'schema:educationalCredentialAwarded',
+                        'inLanguage', 'schema:inLanguage'
                     ]
                 ],
                 'query' => [
@@ -85,7 +90,7 @@ class SearchController extends AbstractController
             $params['body']['query']['bool']['must'][] = [
                 'query_string' => [
                     'query'  => '*' . $query . '*',
-                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'schema:creator.*', 'schema:author.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', '*.name', '*.description'],
+                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'schema:creator.*', 'schema:author.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', 'startDate', 'endDate', 'location', 'arrivalBoatTerminal.*', 'departureBoatTerminal.*', 'subEvent.*', 'schema:subEvent.*', 'sdPublisher.*', 'schema:sdPublisher.*', 'educationalCredentialAwarded', 'schema:educationalCredentialAwarded', 'inLanguage', 'schema:inLanguage', '*.name', '*.description'],
                     'default_operator' => 'AND',
                     'allow_leading_wildcard' => true
                 ]

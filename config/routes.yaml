@@ -23,6 +23,11 @@ app_dashboard:
     path: /dashboard
     controller: App\Controller\DashboardController::index
 
+app_dashboard_clear_stats:
+    path: /dashboard/clear-stats
+    methods: [POST]
+    controller: App\Controller\DashboardController::clearStats
+
 app_api_dashboard_status:
     path: /api/dashboard/status
     controller: App\Controller\DashboardApiController::status
