@@ -1,92 +1,92 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}ODIS Metadata Crawler & Search - Documentation{% endblock %}
+{% block title %}{{ 'home.title'|trans }} - Documentation{% endblock %}
 
 {% block body %}
 <div class="container mt-5">
     <div class="jumbotron shadow-sm">
-        <h1 class="display-4">ODIS Metadata Crawler & Search</h1>
-        <p class="lead">This application is designed to find, index, and search ODIS (Ocean Data and Information System) JSON-LD metadata.</p>
+        <h1 class="display-4">{{ 'home.title'|trans }}</h1>
+        <p class="lead">{{ 'home.lead'|trans }}</p>
         <hr class="my-4">
-        <p>Built with Symfony 8.0 and Elasticsearch.</p>
-        <a class="btn btn-primary btn-lg" href="{{ path('app_search') }}" role="button">Go to Search</a>
+        <p>{{ 'home.built_with'|trans }}</p>
+        <a class="btn btn-primary btn-lg" href="{{ path('app_search') }}" role="button">{{ 'home.go_to_search'|trans }}</a>
     </div>
 
     <div class="row">
         <div class="col-md-8">
-            <h2 id="usage">Usage Documentation</h2>
+            <h2 id="usage">{{ 'home.usage_doc'|trans }}</h2>
             
             <section class="mt-4">
-                <h3>1. Crawling and Indexing</h3>
-                <p>The core functionality is provided by a Symfony command that fetches all ODIS-Arch records from the <code>https://catalogue.odis.org/odis-arch-records</code> API, extracts metadata links, and indexes the content into Elasticsearch.</p>
+                <h3>{{ 'home.crawling_indexing'|trans }}</h3>
+                <p>{{ 'home.crawling_indexing_text'|trans }}</p>
                 <div class="card mb-3 border-primary">
                     <div class="card-body bg-light">
-                        <h6 class="card-title font-weight-bold">Run the crawler:</h6>
+                        <h6 class="card-title font-weight-bold">{{ 'home.run_crawler'|trans }}</h6>
                         <div class="mb-2">
-                            <span class="text-muted small">Complete crawl:</span><br>
+                            <span class="text-muted small">{{ 'home.complete_crawl'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small">Targeted crawl (by ID):</span><br>
+                            <span class="text-muted small">{{ 'home.targeted_crawl'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl 3215 3125</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small">Skip specific IDs:</span><br>
+                            <span class="text-muted small">{{ 'home.skip_ids'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --skip 3215,3125</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small font-weight-bold text-primary">NEW: Parallel crawl:</span><br>
+                            <span class="text-muted small font-weight-bold text-primary">{{ 'home.parallel_crawl'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --parallel --concurrency 5</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small font-weight-bold text-primary">NEW: Testing with limits:</span><br>
+                            <span class="text-muted small font-weight-bold text-primary">{{ 'home.testing_limits'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --limit 10</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear index:</span><br>
+                            <span class="text-muted small font-weight-bold text-danger">{{ 'home.clear_index'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --clear-index</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear stats & reports:</span><br>
+                            <span class="text-muted small font-weight-bold text-danger">{{ 'home.clear_stats'|trans }}</span><br>
                             <code>php bin/console app:odis:clear-stats</code>
                         </div>
                         <div class="mb-2">
-                            <span class="text-muted small font-weight-bold text-danger">NEW: Clear EVERYTHING:</span><br>
+                            <span class="text-muted small font-weight-bold text-danger">{{ 'home.clear_everything'|trans }}</span><br>
                             <code>php bin/console app:odis:clear-stats --all</code>
                         </div>
                         <div class="mt-2">
-                            <span class="text-muted small">Verbose output:</span><br>
+                            <span class="text-muted small">{{ 'home.verbose_output'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl -v</code>
                         </div>
                     </div>
                 </div>
-                <p>What the crawler does:</p>
+                <p>{{ 'home.crawler_tasks_text'|trans }}</p>
                 <ul>
-                    <li>If IDs are provided, it only processes those specific data sources.</li>
-                    <li>If the <code>--skip</code> option is used, it filters out the specified IDs.</li>
-                    <li>If <code>--parallel</code> (or <code>-p</code>) is used, it spawns separate sub-processes for each datasource to speed up the process.</li>
-                    <li>The <code>--concurrency</code> (or <code>-c</code>) option controls the maximum number of simultaneous processes (default is 5).</li>
-                    <li>If <code>--limit</code> (or <code>-l</code>) is used, it restricts the number of metadata records indexed <strong>per data source</strong>. This is very useful for testing without performing a full crawl.</li>
-                    <li>If <code>--clear-index</code> is used, it deletes and recreates the Elasticsearch index before starting the crawl. <strong>This is mandatory when fixing mapping conflicts.</strong></li>
-                    <li>Fetches all data source IDs and metadata from the ODIS-Arch Records API.</li>
-                    <li>Analyzes each source for <strong>ODIS-Arch URL</strong> and <strong>ODIS-Arch Type</strong>.</li>
-                    <li>Parses <strong>Sitemaps</strong> or direct <strong>Sitegraph</strong> JSON-LD files.</li>
-                    <li>Indexes the extracted metadata into the <code>odis_metadata</code> index in Elasticsearch.</li>
-                    <li><strong>Successive crawls update existing entries</strong> instead of creating duplicates, ensuring a cumulative dataset.</li>
-                    <li>Detailed logs of all issues are tracked and viewable in the <strong>Crawler Dashboard</strong>.</li>
+                    <li>{{ 'home.crawler_task_1'|trans }}</li>
+                    <li>{{ 'home.crawler_task_2'|trans }}</li>
+                    <li>{{ 'home.crawler_task_3'|trans }}</li>
+                    <li>{{ 'home.crawler_task_4'|trans }}</li>
+                    <li>{{ 'home.crawler_task_5'|trans }}</li>
+                    <li>{{ 'home.crawler_task_6'|trans }}</li>
+                    <li>{{ 'home.crawler_task_7'|trans }}</li>
+                    <li>{{ 'home.crawler_task_8'|trans }}</li>
+                    <li>{{ 'home.crawler_task_9'|trans }}</li>
+                    <li>{{ 'home.crawler_task_10'|trans }}</li>
+                    <li>{{ 'home.crawler_task_11'|trans }}</li>
+                    <li>{{ 'home.crawler_task_12'|trans }}</li>
                 </ul>
             </section>
 
             <section class="mt-5">
-                <h3>2. Searching & Monitoring</h3>
-                <p>You can use the built-in search interface to query the indexed metadata. It uses an Elasticsearch <code>multi_match</code> query across <code>name</code>, <code>description</code>, and <code>keywords</code> fields.</p>
-                <p><a href="{{ path('app_search') }}">Click here to open the search interface.</a></p>
-                <p>For real-time crawl monitoring and error tracking, visit the <a href="{{ path('app_dashboard') }}">Crawler Dashboard</a>.</p>
+                <h3>{{ 'home.searching_monitoring'|trans }}</h3>
+                <p>{{ 'home.searching_monitoring_text_1'|trans }}</p>
+                <p><a href="{{ path('app_search') }}">{{ 'home.searching_monitoring_text_2'|trans }}</a></p>
+                <p>{{ 'home.searching_monitoring_text_3'|trans|replace({'Crawler Dashboard': '<a href="' ~ path('app_dashboard') ~ '">Crawler Dashboard</a>'})|raw }}</p>
             </section>
 
             <section class="mt-5">
-                <h3>3. Configuration</h3>
-                <p>Environment variables in the <code>.env</code> file control the Elasticsearch connection:</p>
+                <h3>{{ 'home.configuration'|trans }}</h3>
+                <p>{{ 'home.configuration_text'|trans }}</p>
                 <ul>
                     <li><code>ELASTICSEARCH_URL</code>: Usually <code>https://localhost:9200</code>.</li>
                     <li><code>ELASTICSEARCH_USER</code>: <code>elastic</code></li>
@@ -95,52 +95,52 @@
             </section>
 
             <section class="mt-5 mb-5">
-                <h3>4. Resetting Project Data</h3>
-                <p>To clear all data and start from scratch, you can use the built-in maintenance command or the button on the <a href="{{ path('app_dashboard') }}">Dashboard</a>:</p>
+                <h3>{{ 'home.resetting_data'|trans }}</h3>
+                <p>{{ 'home.resetting_data_text'|trans|replace({'Dashboard': '<a href="' ~ path('app_dashboard') ~ '">Dashboard</a>'})|raw }}</p>
                 <div class="card mb-3 border-danger">
                     <div class="card-body bg-light">
                         <div class="mb-3">
-                            <h6 class="font-weight-bold text-danger">1. Clear Everything (Index + Stats):</h6>
-                            <span class="text-muted small">Wipe both Elasticsearch and the local database stats:</span><br>
+                            <h6 class="font-weight-bold text-danger">{{ 'home.clear_everything_title'|trans }}</h6>
+                            <span class="text-muted small">{{ 'home.clear_everything_text'|trans }}</span><br>
                             <code>php bin/console app:odis:clear-stats --all</code>
                         </div>
                         <div class="mb-3">
-                            <h6 class="font-weight-bold text-danger">2. Clear ONLY Stats & Reports:</h6>
-                            <span class="text-muted small">Empty the crawl history table but keep the search index:</span><br>
+                            <h6 class="font-weight-bold text-danger">{{ 'home.clear_stats_title'|trans }}</h6>
+                            <span class="text-muted small">{{ 'home.clear_stats_text'|trans }}</span><br>
                             <code>php bin/console app:odis:clear-stats</code>
                         </div>
                         <div class="mb-3">
-                            <h6 class="font-weight-bold text-danger">3. Clear ONLY Elasticsearch Index:</h6>
-                            <span class="text-muted small">Delete and recreate the metadata index:</span><br>
+                            <h6 class="font-weight-bold text-danger">{{ 'home.clear_index_title'|trans }}</h6>
+                            <span class="text-muted small">{{ 'home.clear_index_text'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --clear-index --limit 1</code>
                         </div>
                         <div class="mb-0">
-                            <h6 class="font-weight-bold text-danger">4. Clear Log Files:</h6>
-                            <span class="text-muted small">Remove any temporary crawl logs:</span><br>
+                            <h6 class="font-weight-bold text-danger">{{ 'home.clear_logs_title'|trans }}</h6>
+                            <span class="text-muted small">{{ 'home.clear_logs_text'|trans }}</span><br>
                             <code>rm -f crawl_*.log</code>
                         </div>
                     </div>
                 </div>
                 <div class="alert alert-warning">
-                    <strong>Warning:</strong> These operations are destructive and cannot be undone. All indexed metadata and crawl history will be lost.
+                    <strong>{{ 'home.destructive_warning'|trans|split(':')|first }}:</strong> {{ 'home.destructive_warning'|trans|split(':')|slice(1)|join(':') }}
                 </div>
             </section>
         </div>
 
         <div class="col-md-4">
             <div class="card border-info mb-3">
-                <div class="card-header bg-info text-white font-weight-bold">System Status</div>
+                <div class="card-header bg-info text-white font-weight-bold">{{ 'home.system_status'|trans }}</div>
                 <div class="card-body">
                     <p class="card-text">
-                        <strong>Framework:</strong> Symfony 8.0<br>
-                        <strong>Storage:</strong> Elasticsearch 9.3<br>
-                        <strong>PHP Version:</strong> 8.5+
+                        <strong>{{ 'home.framework'|trans }}:</strong> Symfony 8.0<br>
+                        <strong>{{ 'home.storage'|trans }}:</strong> Elasticsearch 9.3<br>
+                        <strong>{{ 'home.php_version'|trans }}:</strong> 8.5+
                     </p>
                 </div>
             </div>
             
             <div class="card border-secondary mb-3">
-                <div class="card-header font-weight-bold">Quick Links</div>
+                <div class="card-header font-weight-bold">{{ 'home.quick_links'|trans }}</div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item"><a href="https://catalogue.odis.org" target="_blank">ODIS Catalogue <i class="fa fa-external-link small"></i></a></li>
                     <li class="list-group-item"><a href="https://github.com/iodepo/odis-arch" target="_blank">ODIS-Arch GitHub <i class="fa fa-external-link small"></i></a></li>

@@ -50,13 +50,35 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav mr-auto">
                         <li class="nav-item {{ app.request.attributes.get('_route') == 'app_home' ? 'active' }}">
-                            <a class="nav-link" href="{{ path('app_home') }}">Home <i class="fa fa-home"></i></a>
+                            <a class="nav-link" href="{{ path('app_home') }}">{{ 'nav.home'|trans }} <i class="fa fa-home"></i></a>
                         </li>
                         <li class="nav-item {{ app.request.attributes.get('_route') == 'app_search' ? 'active' }}">
-                            <a class="nav-link" href="{{ path('app_search') }}">Search <i class="fa fa-search"></i></a>
+                            <a class="nav-link" href="{{ path('app_search') }}">{{ 'nav.search'|trans }} <i class="fa fa-search"></i></a>
                         </li>
                         <li class="nav-item {{ app.request.attributes.get('_route') == 'app_dashboard' ? 'active' }}">
-                            <a class="nav-link" href="{{ path('app_dashboard') }}">Dashboard <i class="fa fa-dashboard"></i></a>
+                            <a class="nav-link" href="{{ path('app_dashboard') }}">{{ 'nav.dashboard'|trans }} <i class="fa fa-dashboard"></i></a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fa fa-language mr-1"></i>
+                                {% set current_lang = app.request.locale %}
+                                {% if current_lang == 'en' %}English
+                                {% elseif current_lang == 'fr' %}Français
+                                {% elseif current_lang == 'es' %}Español
+                                {% elseif current_lang == 'zh' %}中文
+                                {% elseif current_lang == 'ru' %}Русский
+                                {% else %}Language
+                                {% endif %}
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="langDropdown">
+                                <a class="dropdown-item {{ current_lang == 'en' ? 'active' }}" href="{{ path('change_language', {locale: 'en'}) }}">English</a>
+                                <a class="dropdown-item {{ current_lang == 'fr' ? 'active' }}" href="{{ path('change_language', {locale: 'fr'}) }}">Français</a>
+                                <a class="dropdown-item {{ current_lang == 'es' ? 'active' }}" href="{{ path('change_language', {locale: 'es'}) }}">Español</a>
+                                <a class="dropdown-item {{ current_lang == 'zh' ? 'active' }}" href="{{ path('change_language', {locale: 'zh'}) }}">中文</a>
+                                <a class="dropdown-item {{ current_lang == 'ru' ? 'active' }}" href="{{ path('change_language', {locale: 'ru'}) }}">Русский</a>
+                            </div>
                         </li>
                     </ul>
                 </div>
@@ -67,7 +89,7 @@
 
         <footer class="mt-5 py-4 bg-light text-center border-top">
             <div class="container text-muted small">
-                &copy; {{ "now"|date("Y") }} ODIS Metadata Project. Powered by Symfony and Elasticsearch.
+                &copy; {{ "now"|date("Y") }} {{ 'footer.copyright'|trans }}
             </div>
         </footer>
     </body>

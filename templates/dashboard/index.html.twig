@@ -18,11 +18,11 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-12 mb-4">
-            <h1 class="display-4"><i class="fa fa-dashboard mr-3"></i>Crawler Dashboard</h1>
-            <p class="lead">Monitoring ODIS metadata extraction and indexing status.</p>
+            <h1 class="display-4"><i class="fa fa-dashboard mr-3"></i>{{ 'dashboard.title'|trans }}</h1>
+            <p class="lead">{{ 'dashboard.lead'|trans }}</p>
             <div id="crawl-status-indicator" class="d-none">
                 <span class="badge badge-warning p-2">
-                    <i class="fa fa-spinner fa-spin mr-1"></i> A crawl is currently in progress...
+                    <i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.crawl_in_progress'|trans }}
                 </span>
             </div>
         </div>
@@ -45,9 +45,9 @@
                 <div class="card shadow-sm">
                     <div class="card-body py-5">
                         <i class="fa fa-database fa-4x text-muted mb-3"></i>
-                        <h3>No crawl statistics found</h3>
-                        <p class="text-muted">Start a new crawl to populate the dashboard and reports.</p>
-                        <a href="{{ path('app_home') }}" class="btn btn-primary">How to Start a Crawl</a>
+                        <h3>{{ 'dashboard.no_stats'|trans }}</h3>
+                        <p class="text-muted">{{ 'dashboard.no_stats_text'|trans }}</p>
+                        <a href="{{ path('app_home') }}" class="btn btn-primary">{{ 'dashboard.how_to_start'|trans }}</a>
                     </div>
                 </div>
             </div>
@@ -59,27 +59,27 @@
                 <div class="col-lg-2 col-md-4 mb-4">
                     <div class="card bg-primary text-white shadow-sm h-100">
                         <div class="card-body text-center px-2">
-                            <h6 class="text-uppercase small">Total Nodes</h6>
+                            <h6 class="text-uppercase small">{{ 'dashboard.total_nodes'|trans }}</h6>
                             <h2 class="h1" id="stat-nodes">{{ totalNodes }}</h2>
-                            <p class="mb-0 small">Discovered</p>
+                            <p class="mb-0 small">{{ 'dashboard.discovered'|trans }}</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-2 col-md-4 mb-4">
                     <div class="card bg-info text-white shadow-sm h-100">
                         <div class="card-body text-center px-2">
-                            <h6 class="text-uppercase small">Pages</h6>
+                            <h6 class="text-uppercase small">{{ 'dashboard.pages'|trans }}</h6>
                             <h2 class="h1" id="stat-pages">{{ totalPages }}</h2>
-                            <p class="mb-0 small">Visited</p>
+                            <p class="mb-0 small">{{ 'dashboard.visited'|trans }}</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-4 mb-4">
                     <div class="card bg-success text-white shadow-sm h-100">
                         <div class="card-body text-center px-2">
-                            <h6 class="text-uppercase small">Total Valid JSON-LD</h6>
+                            <h6 class="text-uppercase small">{{ 'dashboard.valid_jsonld'|trans }}</h6>
                             <h2 class="h1" id="stat-valid">{{ totalValid }}</h2>
-                            <p class="mb-0 small">Total Indexed</p>
+                            <p class="mb-0 small">{{ 'dashboard.total_indexed'|trans }}</p>
                         </div>
                     </div>
                 </div>
@@ -87,10 +87,10 @@
                     <a href="{{ path('app_download_invalid') }}" class="text-decoration-none h-100">
                         <div class="card bg-danger text-white shadow-sm h-100 btn-link-hover">
                             <div class="card-body text-center px-2">
-                                <h6 class="text-uppercase small">Invalid</h6>
+                                <h6 class="text-uppercase small">{{ 'dashboard.invalid'|trans }}</h6>
                                 <h2 class="h1" id="stat-invalid">{{ totalInvalid }}</h2>
-                                <p class="mb-0 small">Format</p>
-                                <span class="badge badge-light mt-2"><i class="fa fa-download mr-1"></i>Report</span>
+                                <p class="mb-0 small">{{ 'dashboard.format'|trans }}</p>
+                                <span class="badge badge-light mt-2"><i class="fa fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
                             </div>
                         </div>
                     </a>
@@ -99,10 +99,10 @@
                     <a href="{{ path('app_download_errors') }}" class="text-decoration-none h-100">
                         <div class="card bg-warning text-dark shadow-sm h-100 btn-link-hover">
                             <div class="card-body text-center px-2">
-                                <h6 class="text-uppercase small font-weight-bold">Summary Errors</h6>
+                                <h6 class="text-uppercase small font-weight-bold">{{ 'dashboard.summary_errors'|trans }}</h6>
                                 <h2 class="h1" id="stat-errors">{{ totalIssues }}</h2>
-                                <p class="mb-0 small">Issues Logged</p>
-                                <span class="badge badge-dark mt-2"><i class="fa fa-download mr-1"></i>Report</span>
+                                <p class="mb-0 small">{{ 'dashboard.issues_logged'|trans }}</p>
+                                <span class="badge badge-dark mt-2"><i class="fa fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
                             </div>
                         </div>
                     </a>

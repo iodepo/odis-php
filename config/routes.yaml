@@ -7,6 +7,10 @@
 # To list all registered routes, run the following command:
 #   bin/console debug:router
 
+change_language:
+    path: /change-language/{locale}
+    controller: App\Controller\LanguageController::changeLanguage
+
 app_home:
     path: /
     controller: App\Controller\HomeController::index
