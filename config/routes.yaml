@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=../vendor/symfony/routing/Loader/schema/routing.schema.json
+
+# This file is the entry point to configure the routes of your app.
+# Methods with the #[Route] attribute are automatically imported.
+# See also https://symfony.com/doc/current/routing.html
+
+# To list all registered routes, run the following command:
+#   bin/console debug:router
+
+app_home:
+    path: /
+    controller: App\Controller\HomeController::index
+
+app_search:
+    path: /search
+    controller: App\Controller\SearchController::search
+
+app_search_relations:
+    path: /search/relations
+    controller: App\Controller\SearchController::relations
+
+app_dashboard:
+    path: /dashboard
+    controller: App\Controller\DashboardController::index
+
+app_api_dashboard_status:
+    path: /api/dashboard/status
+    controller: App\Controller\DashboardApiController::status
+
+app_download_invalid:
+    path: /download/invalid
+    controller: App\Controller\DownloadController::downloadInvalid
+
+app_download_errors:
+    path: /download/errors
+    controller: App\Controller\DownloadController::downloadErrors

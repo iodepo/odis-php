@@ -4,10 +4,10 @@
 .env.local
 
 # Cache and logs
-var/*
+var/
 
 # UnitTest
-tests/*
+tests/
 
 # Managed by Composer
 /bin/*
