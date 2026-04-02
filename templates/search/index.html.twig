@@ -18,6 +18,16 @@
             display: flex;
             justify-content: center;
         }
+        .type-dropdown-list .custom-checkbox:last-child {
+            margin-bottom: 0 !important;
+        }
+        .type-dropdown-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .type-dropdown-list::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
     </style>
 {% endblock %}
 
@@ -34,10 +44,61 @@
                     <input type="text" name="q" class="form-control" placeholder="Search for datasets, keywords..." value="{{ query }}">
                     <input type="hidden" name="sort" value="{{ currentSort }}">
                     <input type="hidden" name="order" value="{{ currentOrder }}">
-                    <input type="hidden" name="type" value="{{ currentType }}">
+                    {% if facets.types is not defined or facets.types|length == 0 %}
+                        {% for type in currentTypes %}
+                            <input type="hidden" name="types[]" value="{{ type }}">
+                        {% endfor %}
+                    {% endif %}
                     <input type="hidden" name="limit" value="{{ currentLimit }}">
                     <div class="input-group-append">
-                        <button class="btn btn-primary" type="submit">Search</button>
+                        {% if query is not empty or currentTypes is not empty %}
+                            <a href="{{ path('app_search') }}" class="btn btn-outline-secondary d-flex align-items-center px-3 border-right-0 rounded-0" title="Clear all filters">
+                                <i class="fa fa-times mr-1"></i>Clear
+                            </a>
+                        {% endif %}
+                        {% if facets.types is defined and facets.types|length > 0 %}
+                            {% set shownTypeKeys = [] %}
+                            {% for bucket in facets.types %}
+                                {% set shownTypeKeys = shownTypeKeys|merge([bucket.key]) %}
+                            {% endfor %}
+                            
+                            {# Keep hidden inputs for types that are NOT in the facet list (e.g. manually added or from a previous result set) #}
+                            {% for type in currentTypes %}
+                                {% if type not in shownTypeKeys %}
+                                    <input type="hidden" name="types[]" value="{{ type }}">
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle h-100 rounded-0 border-left-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fa fa-filter mr-1"></i>Types
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-right p-3 shadow" style="min-width: 300px;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="dropdown-header px-0 mb-0 border-0 text-dark font-weight-bold">Filter by Type</h6>
+                                        <button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm">Apply</button>
+                                    </div>
+                                    <div class="dropdown-divider mt-1 mb-3"></div>
+                                    <div class="type-dropdown-list px-1" style="max-height: 350px; overflow-y: auto;">
+                                        {% for bucket in facets.types %}
+                                            {% set isChecked = bucket.key in currentTypes %}
+                                            <div class="custom-control custom-checkbox mb-3">
+                                                <input type="checkbox" name="types[]" value="{{ bucket.key }}" class="custom-control-input" id="type-dropdown-{{ loop.index }}" {{ isChecked ? 'checked' }}>
+                                                <label class="custom-control-label small d-flex justify-content-between align-items-center w-100 cursor-pointer" for="type-dropdown-{{ loop.index }}">
+                                                    <span class="text-truncate pr-2" style="max-width: 180px;">{{ bucket.key is iterable ? bucket.key|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : bucket.key|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}</span>
+                                                    <span class="badge badge-pill badge-light border text-muted">{{ bucket.doc_count }}</span>
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="dropdown-divider mb-2"></div>
+                                    <a href="{{ path('app_search', {q: query}) }}" class="btn btn-link btn-sm text-danger btn-block text-decoration-none">
+                                        <i class="fa fa-times-circle mr-1"></i> Clear Types
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                        <button class="btn btn-primary px-4" type="submit">Search</button>
                     </div>
                 </div>
             </form>
@@ -46,41 +107,97 @@
                 <div class="alert alert-danger">{{ message }}</div>
             {% endfor %}
 
-            {% if query is not empty %}
+            {% if query is not empty or results|length > 0 %}
+                <div class="mb-3 text-muted">
+                    {% if query is empty %}
+                        Found {{ totalResults }} total records. Browse by type or search above.
+                    {% else %}
+                        Found {{ totalResults }} results for "<strong>{{ query }}</strong>"
+                    {% endif %}
+                </div>
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="card shadow-sm mb-4">
                             <div class="card-header bg-light font-weight-bold">Filter by Type</div>
-                            <div class="list-group list-group-flush">
-                                <a href="{{ path('app_search', {q: query, sort: currentSort, order: currentOrder, limit: currentLimit}) }}" 
-                                   class="list-group-item list-group-item-action {{ (currentType is empty) ? 'active' }}">
-                                    All Types
-                                </a>
-                                {% if facets.types is defined %}
-                                    {% for bucket in facets.types %}
-                                        <a href="{{ path('app_search', {q: query, type: bucket.key, sort: currentSort, order: currentOrder, limit: currentLimit}) }}" 
-                                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ currentType == bucket.key ? 'active' }}">
-                                            {{ bucket.key is iterable ? bucket.key|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': ''}) : bucket.key|replace({'http://schema.org/': '', 'https://schema.org/': ''}) }}
-                                            <span class="badge badge-pill {{ currentType == bucket.key ? 'badge-light' : 'badge-secondary' }}">{{ bucket.doc_count }}</span>
-                                        </a>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
+                            <form action="{{ path('app_search') }}" method="get">
+                                <input type="hidden" name="q" value="{{ query }}">
+                                <input type="hidden" name="sort" value="{{ currentSort }}">
+                                <input type="hidden" name="order" value="{{ currentOrder }}">
+                                <input type="hidden" name="limit" value="{{ currentLimit }}">
+                                    <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                                        {% if query is not empty %}
+                                            <a href="{{ path('app_search', {q: query, sort: currentSort, order: currentOrder, limit: currentLimit}) }}" 
+                                               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ (currentTypes is empty) ? 'active' }}">
+                                                <span>All Types</span>
+                                                <i class="fa fa-layer-group"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ path('app_search', {sort: currentSort, order: currentOrder, limit: currentLimit}) }}" 
+                                               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ (currentTypes is empty) ? 'active' }}">
+                                                <span>All Types</span>
+                                                <i class="fa fa-layer-group"></i>
+                                            </a>
+                                        {% endif %}
+                                        {% if facets.types is defined %}
+                                            {% for bucket in facets.types %}
+                                                {% set isChecked = bucket.key in currentTypes %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center {{ isChecked ? 'bg-light font-weight-bold' }}">
+                                                    <div class="custom-control custom-checkbox w-100">
+                                                        <input type="checkbox" name="types[]" value="{{ bucket.key }}" class="custom-control-input" id="type-{{ loop.index }}" {{ isChecked ? 'checked' }}>
+                                                        <label class="custom-control-label small d-flex justify-content-between align-items-center w-100 cursor-pointer" for="type-{{ loop.index }}">
+                                                            <span class="text-truncate mr-2" title="{{ bucket.key is iterable ? bucket.key|join(', ') : bucket.key }}">
+                                                                {{ bucket.key is iterable ? bucket.key|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : bucket.key|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
+                                                            </span>
+                                                            <span class="badge badge-pill {{ isChecked ? 'badge-primary' : 'badge-secondary' }}">{{ bucket.doc_count }}</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-footer p-3 bg-white border-top">
+                                        <div class="row no-gutters">
+                                            <div class="col-12 mb-2">
+                                                <button type="submit" class="btn btn-primary btn-sm btn-block shadow-sm">
+                                                    <i class="fa fa-sync mr-1"></i> Apply Filters
+                                                </button>
+                                            </div>
+                                            <div class="col-12">
+                                                <a href="{{ path('app_search', {q: query}) }}" class="btn btn-outline-danger btn-sm btn-block">
+                                                    <i class="fa fa-trash-alt mr-1"></i> Clear Types
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                            </form>
                         </div>
                     </div>
                     <div class="col-md-9">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted small">Found {{ totalResults|default(results|length) }} results for "{{ query }}"</span>
+                            <span class="text-muted small">
+                                {% if query is not empty %}
+                                    Found {{ totalResults|default(results|length) }} results for "{{ query }}"
+                                {% else %}
+                                    Showing {{ results|length }} of {{ totalResults }} records
+                                {% endif %}
+                            </span>
                             <div class="d-flex align-items-center">
                                 <div class="dropdown mr-2">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
                                         Per Page: {{ currentLimit }}
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-right">
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: 100}) }}">100</a>
+                                        {% if query is not empty %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
+                                        {% else %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 <div class="dropdown">
@@ -89,9 +206,15 @@
                                         ({{ currentOrder == 'asc' ? 'Asc' : 'Desc' }})
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-right">
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
-                                        <a class="dropdown-item" href="{{ path('app_search', {q: query, type: currentType, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
+                                        {% if query is not empty %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
+                                        {% else %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -122,7 +245,19 @@
                                                 {% if hit.highlight is defined and hit.highlight.name is defined %}
                                                     {{ hit.highlight.name[0]|raw }}
                                                 {% else %}
-                                                    {% set name = source.name is defined ? (source.name is iterable ? (source.name.name is defined ? source.name.name : (source.name|first is iterable ? (source.name|first).name|default(source.name|join(', ')) : source.name|join(', '))) : source.name) : 'Untitled Record' %}
+                                                    {% set name = source.name is defined 
+                                                        ? (source.name is iterable 
+                                                            ? (source.name.name is defined 
+                                                                ? source.name.name 
+                                                                : (attribute(source.name, 'schema:name') is defined 
+                                                                    ? attribute(source.name, 'schema:name')
+                                                                    : (source.name|first is iterable 
+                                                                        ? (source.name|first).name|default(attribute(source.name|first, 'schema:name')|default(source.name|join(', '))) 
+                                                                        : source.name|join(', ')))) 
+                                                            : source.name) 
+                                                        : (attribute(source, 'schema:name') is defined 
+                                                            ? attribute(source, 'schema:name') 
+                                                            : 'Untitled Record') %}
                                                     {{ name is iterable ? name|join(', ') : name }}
                                                 {% endif %}
                                             </a>
@@ -133,14 +268,18 @@
                                             {% endif %}
                                         </h5>
                                         <div class="d-flex align-items-center">
-                                            {% if source.name is defined or source.name is iterable %}
-                                                {% set dataName = source.name is iterable 
-                                                    ? (source.name.name is defined 
-                                                        ? source.name.name 
-                                                        : (source.name|first is iterable 
-                                                            ? (source.name|first).name|default(source.name|first|join(' ')) 
-                                                            : source.name|first)) 
-                                                    : source.name %}
+                                            {% if source.name is defined or attribute(source, 'schema:name') is defined %}
+                                                {% set dataName = source.name is defined 
+                                                    ? (source.name is iterable 
+                                                        ? (source.name.name is defined 
+                                                            ? source.name.name 
+                                                            : (attribute(source.name, 'schema:name') is defined 
+                                                                ? attribute(source.name, 'schema:name')
+                                                                : (source.name|first is iterable 
+                                                                    ? (source.name|first).name|default(attribute(source.name|first, 'schema:name')|default(source.name|first|join(' '))) 
+                                                                    : source.name|first))) 
+                                                        : source.name)
+                                                    : attribute(source, 'schema:name') %}
                                                 {% if dataName is iterable %}{% set dataName = dataName|join(' ') %}{% endif %}
                                                 <button class="btn btn-sm btn-outline-info mr-2 show-relations-btn" 
                                                         data-name="{{ dataName|trim }}"
@@ -159,7 +298,7 @@
                                         <i class="fa fa-link mr-1"></i>{{ primaryLink != '#' ? primaryLink : 'No URL available' }}
                                         {% if attribute(source, '@type') is defined %}
                                             <span class="ml-2 badge badge-pill badge-light border">
-                                                {{ attribute(source, '@type') is iterable ? attribute(source, '@type')|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': ''}) : attribute(source, '@type')|replace({'http://schema.org/': '', 'https://schema.org/': ''}) }}
+                                                {{ attribute(source, '@type') is iterable ? attribute(source, '@type')|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : attribute(source, '@type')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
                                             </span>
                                         {% endif %}
                                     </h6>
@@ -175,7 +314,11 @@
                                             </div>
                                         {% else %}
                                             <p class="mb-2">
-                                                {% set description = source.description is defined ? (source.description is iterable ? source.description|join(' ') : source.description) : 'No description provided.' %}
+                                            {% set description = (source.description is defined or attribute(source, 'schema:description') is defined) 
+                                                ? (source.description is defined 
+                                                    ? (source.description is iterable ? source.description|join(' ') : source.description)
+                                                    : (attribute(source, 'schema:description') is iterable ? attribute(source, 'schema:description')|join(' ') : attribute(source, 'schema:description')))
+                                                : 'No description provided.' %}
                                                 {{ description|length > 300 ? description|slice(0, 300) ~ '...' : description }}
                                             </p>
                                         {% endif %}
@@ -190,12 +333,28 @@
                                                 {% endfor %}
                                             {% elseif source.keywords is iterable %}
                                                 {% for keyword in source.keywords %}
-                                                    {% set kwName = (keyword.name is defined) ? (keyword.name is iterable ? keyword.name|join(', ') : keyword.name) : (keyword is iterable ? keyword|join(', ') : keyword) %}
-                                                    <span class="badge badge-info">{{ kwName }}</span>
+                                                    {% set kwName = (keyword.name is defined) 
+                                                        ? (keyword.name is iterable ? keyword.name|join(', ') : keyword.name) 
+                                                        : (attribute(keyword, 'schema:name') is defined
+                                                            ? (attribute(keyword, 'schema:name') is iterable ? attribute(keyword, 'schema:name')|join(', ') : attribute(keyword, 'schema:name'))
+                                                            : (keyword is iterable ? keyword|join(', ') : keyword)) %}
+                                                    <span class="badge badge-info">{{ kwName|replace({'schema:': ''}) }}</span>
                                                 {% endfor %}
-                                            {% else %}
+                                            {% elseif attribute(source, 'schema:keywords') is defined %}
+                                                {% set schemaKeywords = attribute(source, 'schema:keywords') %}
+                                                {% if schemaKeywords is iterable %}
+                                                    {% for keyword in schemaKeywords %}
+                                                        {% set kwName = keyword is iterable ? (keyword.name|default(attribute(keyword, 'schema:name')|default(keyword|join(', ')))) : keyword %}
+                                                        <span class="badge badge-info">{{ kwName|replace({'schema:': ''}) }}</span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    {% for keyword in schemaKeywords|split(',') %}
+                                                        <span class="badge badge-info">{{ keyword|trim|replace({'schema:': ''}) }}</span>
+                                                    {% endfor %}
+                                                {% endif %}
+                                            {% elseif source.keywords is defined %}
                                                 {% for keyword in source.keywords|split(',') %}
-                                                    <span class="badge badge-info">{{ keyword|trim }}</span>
+                                                    <span class="badge badge-info">{{ keyword|trim|replace({'schema:': ''}) }}</span>
                                                 {% endfor %}
                                             {% endif %}
                                         </div>
@@ -206,12 +365,18 @@
                                             {% if hit.highlight is defined %}
                                                 <div class="mb-1">
                                                     <strong class="text-primary"><i class="fa fa-info-circle mr-1"></i> Why this result?</strong>
-                                                    <span class="text-muted ml-1">
-                                                        Matching terms found in: 
+                                                    <div class="text-muted ml-1 mt-1">
                                                         {% for field, matches in hit.highlight %}
-                                                            <code class="px-1 bg-white border rounded">{{ field }}</code>{{ not loop.last ? ',' }}
+                                                            <div class="mb-2">
+                                                                <code class="px-1 bg-white border rounded text-dark font-weight-bold">{{ field|replace({'schema:': '', '.name': '', '.description': ''})|capitalize }}</code>:
+                                                                {% for match in matches %}
+                                                                    <div class="ml-2 mt-1 font-italic bg-white p-1 border-left border-info rounded-right">
+                                                                        ...{{ match|raw }}...
+                                                                    </div>
+                                                                {% endfor %}
+                                                            </div>
                                                         {% endfor %}
-                                                    </span>
+                                                    </div>
                                                 </div>
                                             {% endif %}
                                             {% if source.odis_cat_id is defined %}
@@ -234,7 +399,11 @@
                             <nav class="mt-4">
                                 <ul class="pagination justify-content-center">
                                     <li class="page-item {{ currentPage == 1 ? 'disabled' }}">
-                                        <a class="page-item page-link" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage - 1}) }}">Previous</a>
+                                        {% if query is not empty %}
+                                            <a class="page-item page-link" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage - 1}) }}">Previous</a>
+                                        {% else %}
+                                            <a class="page-item page-link" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage - 1}) }}">Previous</a>
+                                        {% endif %}
                                     </li>
                                     
                                     {% set start = max(1, currentPage - 2) %}
@@ -242,15 +411,23 @@
                                     {% if end == totalPages and totalPages > 5 %}
                                         {% set start = max(1, totalPages - 4) %}
                                     {% endif %}
-
+                                    
                                     {% for p in start..end %}
                                         <li class="page-item {{ p == currentPage ? 'active' }}">
-                                            <a class="page-link" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: currentLimit, page: p}) }}">{{ p }}</a>
+                                            {% if query is not empty %}
+                                                <a class="page-link" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: p}) }}">{{ p }}</a>
+                                            {% else %}
+                                                <a class="page-link" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: p}) }}">{{ p }}</a>
+                                            {% endif %}
                                         </li>
                                     {% endfor %}
-
+                                    
                                     <li class="page-item {{ currentPage == totalPages ? 'disabled' }}">
-                                        <a class="page-link" href="{{ path('app_search', {q: query, type: currentType, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage + 1}) }}">Next</a>
+                                        {% if query is not empty %}
+                                            <a class="page-link" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage + 1}) }}">Next</a>
+                                        {% else %}
+                                            <a class="page-link" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: currentLimit, page: currentPage + 1}) }}">Next</a>
+                                        {% endif %}
                                     </li>
                                 </ul>
                             </nav>

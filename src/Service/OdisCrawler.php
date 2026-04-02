@@ -517,6 +517,15 @@ class OdisCrawler
                         $item['url'] = $url;
                     }
                     
+                    // Exclude massive fields that aren't useful for search/discovery
+                    // to keep the index size manageable and prevent OOM during search
+                    $largeFieldsToExclude = ['text', 'description', 'keywords', 'subjectOf', 'about', 'funder', 'spatialCoverage', 'geo', 'potentialAction', 'mentions', 'hasCourseInstance'];
+                    foreach ($largeFieldsToExclude as $field) {
+                        if (isset($item[$field]) && is_string($item[$field]) && strlen($item[$field]) > 10000) {
+                            $item[$field] = substr($item[$field], 0, 10000) . '... (truncated for index efficiency)';
+                        }
+                    }
+                    
                     // Link to the ODISCat datasource if we have it
                     if ($this->currentDatasourceId && !isset($item['odis_cat_id'])) {
                         $item['odis_cat_id'] = $this->currentDatasourceId;
@@ -612,14 +621,21 @@ class OdisCrawler
     private function extractJsonLdFromHtml(string $html): ?array
     {
         try {
+            // To avoid memory issues with large HTML files, if the file is truly massive,
+            // we should try to extract the JSON-LD without building a full DOM if possible.
+            // But for now, let's at least try to be efficient.
             $crawler = new Crawler($html);
             $jsonLdScripts = $crawler->filter('script[type="application/ld+json"]');
             
+            $results = [];
             if ($jsonLdScripts->count() > 0) {
-                $results = [];
                 $jsonLdScripts->each(function (Crawler $node) use (&$results) {
-                    $json = $node->text();
+                    $json = trim($node->text());
+                    if (empty($json)) return;
+                    
                     $decoded = json_decode($json, true);
+                    unset($json); // Clear large string
+                    
                     if ($decoded) {
                         if (isset($decoded['@graph']) && is_array($decoded['@graph'])) {
                             foreach ($decoded['@graph'] as $item) {
@@ -629,9 +645,15 @@ class OdisCrawler
                             $results[] = $decoded;
                         }
                     }
+                    unset($decoded);
                 });
-                return $results;
             }
+            
+            // Cleanup the crawler object early
+            unset($crawler);
+            gc_collect_cycles();
+            
+            return !empty($results) ? $results : null;
         } catch (\Exception $e) {
             $this->log("Error extracting JSON-LD from HTML: " . $e->getMessage(), 'warning');
         }

@@ -24,75 +24,123 @@ class SearchController extends AbstractController
         $query = $request->query->get('q', '');
         $sort = $request->query->get('sort', '_score');
         $order = $request->query->get('order', 'desc');
-        $typeFilter = $request->query->get('type', '');
+        $typeFilter = $request->query->all('types');
+        if (empty($typeFilter)) {
+            $typeFilter = $request->query->get('type', '');
+            if (!empty($typeFilter)) {
+                $typeFilter = explode(',', $typeFilter);
+            } else {
+                $typeFilter = [];
+            }
+        }
+        
         $page = max(1, (int) $request->query->get('page', 1));
-        $limit = max(1, min(100, (int) $request->query->get('limit', 20)));
+        $limit = max(1, min(100, (int) $request->query->get('limit', 10)));
+        
+        // Safety: if limit is too high for complex queries, cap it aggressively
+        // to stay within 128MB memory limit.
+        if (!empty($query)) {
+            $limit = min($limit, 15);
+        } else {
+            $limit = min($limit, 50);
+        }
+
+        gc_collect_cycles();
         
         $results = [];
         $facets = [];
         $totalResults = 0;
 
-        if (!empty($query)) {
-            $params = [
-                'index' => $this->esIndex,
-                'from'  => ($page - 1) * $limit,
-                'size'  => $limit,
-                'body'  => [
-                    'query' => [
-                        'bool' => [
-                            'must' => [
-                                'query_string' => [
-                                    'query'  => '*' . $query . '*',
-                                    'fields' => ['name^3', 'description', 'keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', '*.name', '*.description'],
-                                    'default_operator' => 'AND',
-                                    'allow_leading_wildcard' => true
-                                ]
-                            ]
-                        ]
-                    ],
-                    'highlight' => [
-                        'fields' => [
-                            'name' => new \stdClass(),
-                            'description' => new \stdClass(),
-                            'keywords' => new \stdClass(),
-                            'text' => new \stdClass()
-                        ]
-                    ],
-                    'aggs' => [
-                        'types' => [
-                            'terms' => ['field' => '@type.keyword', 'size' => 10]
-                        ]
+        $params = [
+            'index' => $this->esIndex,
+            'from'  => ($page - 1) * $limit,
+            'size'  => $limit,
+            'track_total_hits' => true,
+            'body'  => [
+                '_source' => [
+                    'excludes' => [
+                        'text', 'description', 'keywords', 'attendee.*', 'contributor.*', 'organizer.*',
+                        'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'hasCourseInstance.*',
+                        'variableMeasured.*', 'distribution.*', 'subjectOf.*', 'about.*', 'funder.*', 'publisher.*',
+                        'spatialCoverage.*', 'geo.*', 'potentialAction.*', 'identifier.*', 'image.*', 'mentions.*'
+                    ]
+                ],
+                'query' => [
+                    'bool' => [
+                        'must' => []
+                    ]
+                ],
+                'aggs' => [
+                    'types' => [
+                        'terms' => ['field' => '@type.keyword', 'size' => 10]
                     ]
                 ]
+            ]
+        ];
+
+        if (!empty($query)) {
+            $params['body']['query']['bool']['must'][] = [
+                'query_string' => [
+                    'query'  => '*' . $query . '*',
+                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', '*.name', '*.description'],
+                    'default_operator' => 'AND',
+                    'allow_leading_wildcard' => true
+                ]
             ];
-
-            if (!empty($typeFilter)) {
-                $params['body']['query']['bool']['filter'] = [
-                    ['term' => ['@type.keyword' => $typeFilter]]
-                ];
+            
+            $params['body']['highlight'] = [
+                'fields' => [
+                    'name' => ['number_of_fragments' => 1, 'fragment_size' => 100],
+                    'schema:name' => ['number_of_fragments' => 1, 'fragment_size' => 100],
+                    'description' => ['number_of_fragments' => 1, 'fragment_size' => 150],
+                    'schema:description' => ['number_of_fragments' => 1, 'fragment_size' => 150],
+                    'keywords' => ['number_of_fragments' => 3, 'fragment_size' => 50],
+                    'schema:keywords' => ['number_of_fragments' => 3, 'fragment_size' => 50],
+                    'text' => ['number_of_fragments' => 1, 'fragment_size' => 150],
+                    'url' => ['number_of_fragments' => 1, 'fragment_size' => 100],
+                    '@id' => ['number_of_fragments' => 1, 'fragment_size' => 100],
+                    '*.name' => ['number_of_fragments' => 1, 'fragment_size' => 100],
+                    '*.description' => ['number_of_fragments' => 1, 'fragment_size' => 150],
+                ]
+            ];
+        } else {
+            $params['body']['query']['bool']['must'][] = ['match_all' => new \stdClass()];
+            // Default sort by name if no query
+            if ($sort === '_score') {
+                $sort = 'name';
+                $order = 'asc';
             }
+        }
 
-            if ($sort === 'name') {
-                $params['body']['sort'] = [
-                    ['name.keyword' => ['order' => $order]]
-                ];
-            } else {
-                $params['body']['sort'] = [
-                    ['_score' => ['order' => 'desc']]
-                ];
-            }
+        if (!empty($typeFilter)) {
+            $params['body']['query']['bool']['filter'] = [
+                ['terms' => ['@type.keyword' => (array) $typeFilter]]
+            ];
+        }
 
-            try {
-                $response = $this->esClient->search($params);
-                $results = $response['hits']['hits'];
-                $totalResults = $response['hits']['total']['value'] ?? 0;
-                if (isset($response['aggregations']['types']['buckets'])) {
-                    $facets['types'] = $response['aggregations']['types']['buckets'];
-                }
-            } catch (\Exception $e) {
-                $this->addFlash('error', 'Elasticsearch error: ' . $e->getMessage());
-                $totalResults = 0;
+        if ($sort === 'name') {
+            $params['body']['sort'] = [
+                ['name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword']],
+                ['schema:name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword']]
+            ];
+        } else {
+            $params['body']['sort'] = [
+                ['_score' => ['order' => 'desc']]
+            ];
+        }
+
+        try {
+            $response = $this->esClient->search($params);
+            $results = $response['hits']['hits'];
+            $totalResults = $response['hits']['total']['value'] ?? 0;
+            if (isset($response['aggregations']['types']['buckets'])) {
+                $facets['types'] = $response['aggregations']['types']['buckets'];
             }
+            unset($response);
+            gc_collect_cycles();
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Elasticsearch error: ' . $e->getMessage());
+            $totalResults = 0;
         }
 
         return $this->render('search/index.html.twig', [
@@ -102,7 +150,8 @@ class SearchController extends AbstractController
             'facets' => $facets,
             'currentSort' => $sort,
             'currentOrder' => $order,
-            'currentType' => $typeFilter,
+            'currentType' => !empty($typeFilter) ? implode(',', (array) $typeFilter) : '',
+            'currentTypes' => (array) $typeFilter,
             'currentPage' => $page,
             'currentLimit' => $limit,
             'totalPages' => (int) ceil($totalResults / $limit),
@@ -121,7 +170,7 @@ class SearchController extends AbstractController
 
         $params = [
             'index' => $this->esIndex,
-            'size' => 100,
+            'size' => 50,
             'body' => [
                 'query' => [
                     'bool' => [
@@ -139,7 +188,7 @@ class SearchController extends AbstractController
                         ]
                     ]
                 ],
-                '_source' => ['name', '@type', '@id', 'url', 'attendee', 'contributor', 'organizer', 'performer', 'person', 'provider', 'creator', 'author', 'hasCourseInstance']
+                '_source' => ['name', 'schema:name', '@type', '@id', 'url', 'attendee.name', 'contributor.name', 'organizer.name', 'performer.name', 'person.name', 'provider.name', 'creator.name', 'author.name', 'hasCourseInstance.attendee.name']
             ]
         ];
 
@@ -152,14 +201,9 @@ class SearchController extends AbstractController
         try {
             $response = $this->esClient->search($params);
             $hits = $response['hits']['hits'];
+            unset($response);
+            gc_collect_cycles();
 
-            // Fallback: if no exact name matches, try a broader search without quotes
-            if (empty($hits) && !empty($name)) {
-                $params['body']['query']['bool']['must']['query_string']['query'] = $name;
-                $response = $this->esClient->search($params);
-                $hits = $response['hits']['hits'];
-            }
-            
             $relations = [];
             foreach ($hits as $hit) {
                 $source = $hit['_source'];
