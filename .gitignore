@@ -1,0 +1,23 @@
+# symfony env settings for different environments
+.env
+.env.dev
+.env.local
+
+# Cache and logs
+var/*
+
+# UnitTest
+tests/*
+
+# Managed by Composer
+/bin/*
+!bin/console
+vendor/
+
+#editor specific files
+.idea
+.buildpath
+.project
+.settings
+
+reed_results.json
