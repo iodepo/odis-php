@@ -37,7 +37,8 @@ class OdisCrawlCommand extends Command
             ->addOption('skip', 's', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'List of ODISCat IDs to skip')
             ->addOption('parallel', 'p', InputOption::VALUE_NONE, 'Run crawl in parallel sessions for each datasource')
             ->addOption('concurrency', 'c', InputOption::VALUE_REQUIRED, 'Max concurrent processes for parallel crawl', 5)
-            ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of records crawled per datasource', 0);
+            ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of records crawled per datasource', 0)
+            ->addOption('clear-index', null, InputOption::VALUE_NONE, 'Clear the Elasticsearch index before starting the crawl');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -60,6 +61,11 @@ class OdisCrawlCommand extends Command
         $limit = (int) $input->getOption('limit');
         if ($limit > 0) {
             $this->crawler->setLimit($limit);
+        }
+
+        if ($input->getOption('clear-index')) {
+            $io->warning('Clearing Elasticsearch index...');
+            $this->crawler->clearIndex();
         }
 
         $ids = $this->parseIds($input->getArgument('ids'));

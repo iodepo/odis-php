@@ -108,13 +108,56 @@
             {% endfor %}
 
             {% if query is not empty or results|length > 0 %}
-                <div class="mb-3 text-muted">
-                    {% if query is empty %}
-                        Found {{ totalResults }} total records. Browse by type or search above.
-                    {% else %}
-                        Found {{ totalResults }} results for "<strong>{{ query }}</strong>"
-                    {% endif %}
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+                            <span class="text-muted small">
+                                {% if query is not empty %}
+                                    Found {{ totalResults|default(results|length) }} results for "<strong>{{ query }}</strong>"
+                                {% else %}
+                                    Showing {{ results|length }} of {{ totalResults }} total records
+                                {% endif %}
+                            </span>
+                            <div class="d-flex align-items-center">
+                                <div class="dropdown mr-2">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                                        Per Page: {{ currentLimit }}
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        {% if query is not empty %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
+                                        {% else %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                                        Sort by: {{ currentSort == 'name' ? 'Name' : 'Relevance' }} 
+                                        ({{ currentOrder == 'asc' ? 'Asc' : 'Desc' }})
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        {% if query is not empty %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
+                                        {% else %}
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
+                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="card shadow-sm mb-4">
@@ -164,7 +207,7 @@
                                             </div>
                                             <div class="col-12">
                                                 <a href="{{ path('app_search', {q: query}) }}" class="btn btn-outline-danger btn-sm btn-block">
-                                                    <i class="fa fa-trash-alt mr-1"></i> Clear Types
+                                                    <i class="fa fa-trash-alt mr-1"></i> Clear Filter
                                                 </a>
                                             </div>
                                         </div>
@@ -173,53 +216,6 @@
                         </div>
                     </div>
                     <div class="col-md-9">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted small">
-                                {% if query is not empty %}
-                                    Found {{ totalResults|default(results|length) }} results for "{{ query }}"
-                                {% else %}
-                                    Showing {{ results|length }} of {{ totalResults }} records
-                                {% endif %}
-                            </span>
-                            <div class="d-flex align-items-center">
-                                <div class="dropdown mr-2">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
-                                        Per Page: {{ currentLimit }}
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-right">
-                                        {% if query is not empty %}
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
-                                        {% else %}
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 5}) }}">5</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 10}) }}">10</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 20}) }}">20</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: currentSort, order: currentOrder, limit: 50}) }}">50</a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
-                                        Sort by: {{ currentSort == 'name' ? 'Name' : 'Relevance' }} 
-                                        ({{ currentOrder == 'asc' ? 'Asc' : 'Desc' }})
-                                    </button>
-                                    <div class="dropdown-menu dropdown-menu-right">
-                                        {% if query is not empty %}
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {q: query, types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
-                                        {% else %}
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: '_score', order: 'desc', limit: currentLimit}) }}">Relevance</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'asc', limit: currentLimit}) }}">Name (A-Z)</a>
-                                            <a class="dropdown-item" href="{{ path('app_search', {types: currentTypes, sort: 'name', order: 'desc', limit: currentLimit}) }}">Name (Z-A)</a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         {% for hit in results %}
                             {% set source = hit._source %}
                             <div class="card mb-3 shadow-sm result-item">

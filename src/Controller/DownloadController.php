@@ -39,14 +39,20 @@ class DownloadController extends AbstractController
     private function generateCsvResponse(array $data, string $filename): Response
     {
         $handle = fopen('php://memory', 'r+');
-        fputcsv($handle, ['Crawl ID', 'Date', 'Type', 'Message']);
+        fputcsv($handle, ['Crawl ID', 'Date', 'Type', 'Message', 'ODISCat Link']);
 
         foreach ($data as $row) {
+            $odisCatLink = '';
+            if (isset($row['datasource_id']) && $row['datasource_id']) {
+                $odisCatLink = "https://catalogue.odis.org/view/" . $row['datasource_id'];
+            }
+            
             fputcsv($handle, [
                 $row['crawl_id'],
                 $row['date']->format('Y-m-d H:i:s'),
                 $row['crawl_type'],
-                $row['message']
+                $row['message'],
+                $odisCatLink
             ]);
         }
 

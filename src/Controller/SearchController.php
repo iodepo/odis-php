@@ -62,7 +62,10 @@ class SearchController extends AbstractController
                         'text', 'description', 'keywords', 'attendee.*', 'contributor.*', 'organizer.*',
                         'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'hasCourseInstance.*',
                         'variableMeasured.*', 'distribution.*', 'subjectOf.*', 'about.*', 'funder.*', 'publisher.*',
-                        'spatialCoverage.*', 'geo.*', 'potentialAction.*', 'identifier.*', 'image.*', 'mentions.*'
+                        'spatialCoverage.*', 'geo.*', 'potentialAction.*', 'identifier.*', 'image.*', 'mentions.*',
+                        'schema:creator.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', 'schema:author.*',
+                        'schema:distribution.*', 'schema:subjectOf.*', 'schema:about.*', 'schema:spatialCoverage.*',
+                        'schema:geo.*', 'schema:potentialAction.*', 'schema:identifier.*', 'schema:mentions.*'
                     ]
                 ],
                 'query' => [
@@ -82,13 +85,14 @@ class SearchController extends AbstractController
             $params['body']['query']['bool']['must'][] = [
                 'query_string' => [
                     'query'  => '*' . $query . '*',
-                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', '*.name', '*.description'],
+                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'schema:creator.*', 'schema:author.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', '*.name', '*.description'],
                     'default_operator' => 'AND',
                     'allow_leading_wildcard' => true
                 ]
             ];
             
             $params['body']['highlight'] = [
+                'max_analyzed_offset' => 999999,
                 'fields' => [
                     'name' => ['number_of_fragments' => 1, 'fragment_size' => 100],
                     'schema:name' => ['number_of_fragments' => 1, 'fragment_size' => 100],

@@ -286,7 +286,7 @@ class CrawlStat
         return $this;
     }
 
-    public function addErrorDetail(string $message): self
+    public function addErrorDetail(string|array $message): self
     {
         if ($this->errorDetails === null) {
             $this->errorDetails = [];

@@ -121,7 +121,10 @@ class OdisCrawler
             $this->log($message, 'error');
             $this->crawlerErrorsCount++;
             $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-            $this->errorDetails[] = $shortMessage;
+            $this->errorDetails[] = [
+                'id' => null,
+                'message' => $shortMessage
+            ];
             $this->saveStats('failed');
             return;
         }
@@ -168,7 +171,12 @@ class OdisCrawler
         }
 
         // Final deduplication before finishing
-        $this->errorDetails = array_values(array_unique($this->errorDetails));
+        $temp = [];
+        foreach ($this->errorDetails as $error) {
+            $key = is_array($error) ? json_encode($error) : $error;
+            $temp[$key] = $error;
+        }
+        $this->errorDetails = array_values($temp);
 
         $this->currentStat->setNodesFound($this->nodesFoundCount);
         $this->currentStat->setPagesCrawled($this->pagesCrawledCount);
@@ -197,15 +205,39 @@ class OdisCrawler
         // Update DB every 2 seconds to avoid too many writes but keep it "real-time" enough
         if (time() - $this->lastUpdateTimestamp >= 2) {
             // Deduplicate and cap errorDetails right before saving
-            $this->errorDetails = array_values(array_unique($this->errorDetails));
+            $temp = [];
+            foreach ($this->errorDetails as $error) {
+                $key = is_array($error) ? json_encode($error) : $error;
+                $temp[$key] = $error;
+            }
+            $this->errorDetails = array_values($temp);
+            
             if (count($this->errorDetails) > $this->maxStoredErrors) {
                 $this->errorDetails = array_slice($this->errorDetails, 0, $this->maxStoredErrors);
-                $this->errorDetails[] = "... and more (too many unique errors logged)";
-                $this->errorDetails = array_values(array_unique($this->errorDetails));
+                $this->errorDetails[] = [
+                    'id' => null,
+                    'message' => "... and more (too many unique errors logged)"
+                ];
+                // Final re-deduplicate to avoid duplicate "... and more"
+                $temp = [];
+                foreach ($this->errorDetails as $error) {
+                    $key = is_array($error) ? json_encode($error) : $error;
+                    $temp[$key] = $error;
+                }
+                $this->errorDetails = array_values($temp);
             }
 
             $this->saveStats('in_progress');
             $this->lastUpdateTimestamp = time();
+        }
+    }
+
+    public function clearIndex(): void
+    {
+        $params = ['index' => $this->esIndex];
+        if ($this->esClient->indices()->exists($params)->asBool()) {
+            $this->esClient->indices()->delete($params);
+            $this->log("Deleted Elasticsearch index: {$this->esIndex}");
         }
     }
 
@@ -228,11 +260,59 @@ class OdisCrawler
                             'contributor' => ['type' => 'flattened'],
                             'distribution' => ['type' => 'flattened'],
                             'identifier' => ['type' => 'flattened'],
+                            'creator' => ['type' => 'flattened'],
+                            'provider' => ['type' => 'flattened'],
+                            'schema:provider' => ['type' => 'flattened'],
+                            'funder' => ['type' => 'flattened'],
+                            'schema:funder' => ['type' => 'flattened'],
+                            'publisher' => ['type' => 'flattened'],
+                            'schema:publisher' => ['type' => 'flattened'],
+                            'author' => ['type' => 'flattened'],
+                            'schema:author' => ['type' => 'flattened'],
+                            'contributor' => ['type' => 'flattened'],
+                            'schema:contributor' => ['type' => 'flattened'],
+                            'about' => ['type' => 'flattened'],
+                            'mentions' => ['type' => 'flattened'],
+                            'subjectOf' => ['type' => 'flattened'],
+                            'spatialCoverage' => ['type' => 'flattened'],
+                            'geo' => ['type' => 'flattened'],
+                            'schema:creator' => ['type' => 'flattened'],
+                            'schema:about' => ['type' => 'flattened'],
+                            'schema:mentions' => ['type' => 'flattened'],
+                            'schema:subjectOf' => ['type' => 'flattened'],
+                            'schema:spatialCoverage' => ['type' => 'flattened'],
+                            'schema:geo' => ['type' => 'flattened'],
+                            'schema:distribution' => ['type' => 'flattened'],
+                            'schema:identifier' => ['type' => 'flattened'],
+                            'potentialAction' => ['type' => 'flattened'],
+                            'schema:potentialAction' => ['type' => 'flattened'],
+                            'hasCourseInstance' => ['type' => 'flattened'],
+                            'schema:hasCourseInstance' => ['type' => 'flattened'],
+                            'sameAs' => ['type' => 'flattened'],
+                            'schema:sameAs' => ['type' => 'flattened'],
+                            'variableMeasured' => ['type' => 'flattened'],
+                            'schema:variableMeasured' => ['type' => 'flattened'],
+                            'includedInDataCatalog' => ['type' => 'flattened'],
+                            'schema:includedInDataCatalog' => ['type' => 'flattened'],
                             '@type' => [
                                 'type' => 'text',
                                 'fields' => ['keyword' => ['type' => 'keyword']]
                             ],
                             'url' => ['type' => 'keyword'],
+                            'schema:name' => [
+                                'type' => 'text',
+                                'fields' => ['keyword' => ['type' => 'keyword']]
+                            ],
+                            'schema:description' => ['type' => 'text'],
+                            'schema:keywords' => ['type' => 'flattened'],
+                            'license' => ['type' => 'flattened'],
+                            'schema:license' => ['type' => 'flattened'],
+                            'citation' => ['type' => 'flattened'],
+                            'schema:citation' => ['type' => 'flattened'],
+                            'version' => ['type' => 'flattened'],
+                            'schema:version' => ['type' => 'flattened'],
+                            'encodingFormat' => ['type' => 'flattened'],
+                            'schema:encodingFormat' => ['type' => 'flattened'],
                             '@context' => ['type' => 'flattened']
                         ]
                     ]
@@ -262,7 +342,10 @@ class OdisCrawler
             $this->log($message, 'error');
             $this->crawlerErrorsCount++;
             $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-            $this->errorDetails[] = $shortMessage;
+            $this->errorDetails[] = [
+                'id' => null,
+                'message' => $shortMessage
+            ];
             return [];
         }
     }
@@ -274,8 +357,17 @@ class OdisCrawler
         // Reset memory-intensive state for each datasource to prevent leaks and OOM on large crawls
         if (count($this->errorDetails) > $this->maxStoredErrors) {
             $this->errorDetails = array_slice($this->errorDetails, 0, $this->maxStoredErrors);
-            $this->errorDetails[] = "... and more (too many unique errors logged in previous datasources)";
-            $this->errorDetails = array_values(array_unique($this->errorDetails));
+            $this->errorDetails[] = [
+                'id' => null,
+                'message' => "... and more (too many unique errors logged in previous datasources)"
+            ];
+            // Deduplicate
+            $temp = [];
+            foreach ($this->errorDetails as $error) {
+                $key = is_array($error) ? json_encode($error) : $error;
+                $temp[$key] = $error;
+            }
+            $this->errorDetails = array_values($temp);
         }
         
         $this->currentDatasourceId = $id;
@@ -432,8 +524,83 @@ class OdisCrawler
             $this->log($message, 'error');
             $this->crawlerErrorsCount++;
             $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-            $this->errorDetails[] = $shortMessage;
+            $this->errorDetails[] = [
+                'id' => $this->currentDatasourceId,
+                'message' => $shortMessage
+            ];
         }
+    }
+
+    private function normalizePolymorphicField($value): ?array
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            return [['name' => $value]];
+        }
+
+        if (is_array($value)) {
+            // Check if it's an associative array (single object)
+            $isAssoc = false;
+            if (!empty($value)) {
+                $keys = array_keys($value);
+                $isAssoc = array_keys($keys) !== $keys;
+            }
+
+            if ($isAssoc) {
+                // It's a single object, wrap it in an array to be consistent
+                return [$value];
+            } else {
+                // It's an indexed array, ensure all elements are objects
+                $newValues = [];
+                foreach ($value as $val) {
+                    if ($val === null) {
+                        continue;
+                    }
+                    if (is_string($val)) {
+                        $newValues[] = ['name' => $val];
+                    } elseif (is_array($val)) {
+                        $newValues[] = $val;
+                    } else {
+                        // scalar or other, convert to string
+                        $newValues[] = ['name' => (string)$val];
+                    }
+                }
+                return $newValues;
+            }
+        }
+
+        // scalar but not string, convert to string wrapped in object
+        return [['name' => (string)$value]];
+    }
+
+    private function getSolutionForError(string $message): string
+    {
+        if (str_contains($message, '400 Bad Request') || str_contains($message, 'document_parsing_exception') || str_contains($message, 'illegal_argument_exception')) {
+            if (str_contains($message, 'failed to parse field')) {
+                preg_match('/failed to parse field \[([^\]]+)\] of type \[([^\]]+)\]/', $message, $matches);
+                $field = $matches[1] ?? 'unknown';
+                $type = $matches[2] ?? 'unknown';
+                return "Mapping conflict for field '$field' (expected $type). Solution: Run the crawl with the '--clear-index' option to reset Elasticsearch mappings.";
+            }
+            return "Elasticsearch indexing failed due to a mapping conflict or invalid document structure. Solution: Try running with '--clear-index' to reset the index.";
+        }
+        
+        if (str_contains($message, 'Syntax error') || str_contains($message, 'Control character error')) {
+            return "The JSON-LD contains syntax errors (e.g. missing commas, unescaped quotes). Solution: Use a JSON validator or the JSON-LD Playground (https://json-ld.org/playground/) to fix the source data.";
+        }
+
+        if (str_contains($message, 'No JSON-LD found')) {
+            return "No <script type=\"application/ld+json\"> tags were found on the page. Solution: Ensure the page contains valid JSON-LD metadata.";
+        }
+
+        if (str_contains($message, '500 Internal Server Error') || str_contains($message, '404 Not Found')) {
+            return "The server returned a terminal error. Solution: Check if the URL is accessible and the server is healthy.";
+        }
+
+        return "Unknown error occurred during processing. Solution: Check the crawler logs for more details.";
     }
 
     private function fetchAndIndexJson(string $url): void
@@ -465,8 +632,49 @@ class OdisCrawler
             $body = $bodyStream->getContents();
             
             $data = null;
+            $this->log("Processing body with content type: $contentType", 'debug');
             if (str_contains($contentType, 'application/json') || str_contains($contentType, 'application/ld+json')) {
+                // If it's JSON, it might still have leading/trailing whitespace or UTF-8 BOM
+                $body = trim($body);
+                // Remove UTF-8 BOM if present
+                if (str_starts_with($body, "\xEF\xBB\xBF")) {
+                    $body = substr($body, 3);
+                }
+                
                 $data = json_decode($body, true);
+                if ($data === null) {
+                    $jsonError = json_last_error_msg();
+                    $shortBody = substr($body, 0, 200);
+                    $fullError = "JSON decoding failed for $url: $jsonError. Body starts with: $shortBody";
+                    $solution = $this->getSolutionForError($jsonError);
+                    
+                    $this->log($fullError, 'warning');
+                    
+                    // Fallback to HTML extraction if JSON decode failed but it might be HTML mislabeled as JSON
+                    if (str_contains($body, '<html')) {
+                        $this->log("Content contains <html> tag, attempting HTML extraction for $url", 'debug');
+                        $data = $this->extractJsonLdFromHtml($body);
+                    }
+                    
+                    if (!$data) {
+                        $this->invalidJsonLdsCount++;
+                        $errorMsg = "Invalid JSON: $jsonError. $solution";
+                        $this->errorDetails[] = [
+                            'id' => $this->currentDatasourceId,
+                            'message' => $errorMsg,
+                            'url' => $url
+                        ];
+                        if ($this->currentStat) {
+                            $this->currentStat->incrementEntryErrorsCount();
+                            $this->currentStat->addEntryError($errorMsg);
+                            $this->currentStat->addErrorDetail([
+                                'id' => $this->currentDatasourceId,
+                                'message' => $errorMsg,
+                                'url' => $url
+                            ]);
+                        }
+                    }
+                }
             } elseif (str_contains($contentType, 'text/html')) {
                 $data = $this->extractJsonLdFromHtml($body);
             } else {
@@ -481,34 +689,51 @@ class OdisCrawler
             unset($body);
 
             if ($data) {
-                // Handle both single object and list of objects
-                $items = isset($data[0]) ? $data : [$data];
+                // Handle different JSON-LD container structures
+                $items = [];
+                
+                // 1. Array of objects
+                if (isset($data[0])) {
+                    $items = $data;
+                } 
+                // 2. ItemList
+                elseif (isset($data['@type']) && (is_string($data['@type']) ? $data['@type'] === 'ItemList' : in_array('ItemList', $data['@type'])) && isset($data['itemListElement'])) {
+                    foreach ($data['itemListElement'] as $element) {
+                        if (isset($element['item'])) {
+                            $items[] = $element['item'];
+                        } else {
+                            $items[] = $element;
+                        }
+                    }
+                }
+                // 3. CreativeWork with hasPart (another common collection pattern)
+                elseif (isset($data['hasPart'])) {
+                    $items = is_array($data['hasPart']) ? $data['hasPart'] : [$data['hasPart']];
+                }
+                // 4. Single object
+                else {
+                    $items = [$data];
+                }
                 
                 foreach ($items as $item) {
-                    if (empty($item) || !is_array($item)) continue;
+                    if (empty($item) || !is_array($item)) {
+                        $this->log("Invalid item structure (not an array) in $url", 'warning');
+                        continue;
+                    }
                     
                     if ($this->limit > 0 && $this->processedInCurrentDatasource >= $this->limit) {
                         break;
                     }
 
                     // Sanitize polymorphic fields that can be mixed string/object
-                    $polymorphicFields = ['knowsAbout', 'keywords', 'contributor', 'distribution', 'identifier'];
+                    $polymorphicFields = [
+                        'knowsAbout', 'keywords', 'contributor', 'distribution', 'identifier', 'potentialAction', 'hasCourseInstance', 'sameAs', 'variableMeasured', 'includedInDataCatalog',
+                        'creator', 'publisher', 'provider', 'funder', 'author', 'about', 'mentions', 'subjectOf', 'spatialCoverage', 'geo', 'license', 'citation', 'version', 'encodingFormat',
+                        'schema:name', 'schema:description', 'schema:keywords', 'schema:creator', 'schema:publisher', 'schema:provider', 'schema:funder', 'schema:author', 'schema:about', 'schema:mentions', 'schema:subjectOf', 'schema:spatialCoverage', 'schema:geo', 'schema:distribution', 'schema:identifier', 'schema:contributor', 'schema:potentialAction', 'schema:hasCourseInstance', 'schema:sameAs', 'schema:variableMeasured', 'schema:includedInDataCatalog', 'schema:license', 'schema:citation', 'schema:version', 'schema:encodingFormat'
+                    ];
                     foreach ($polymorphicFields as $field) {
                         if (isset($item[$field])) {
-                            if (is_string($item[$field])) {
-                                $item[$field] = ['name' => $item[$field]];
-                            } elseif (is_array($item[$field])) {
-                                // If it's an array, ensure all elements are objects
-                                $newValues = [];
-                                foreach ($item[$field] as $val) {
-                                    if (is_string($val)) {
-                                        $newValues[] = ['name' => $val];
-                                    } else {
-                                        $newValues[] = $val;
-                                    }
-                                }
-                                $item[$field] = $newValues;
-                            }
+                            $item[$field] = $this->normalizePolymorphicField($item[$field]);
                         }
                     }
                     
@@ -519,7 +744,10 @@ class OdisCrawler
                     
                     // Exclude massive fields that aren't useful for search/discovery
                     // to keep the index size manageable and prevent OOM during search
-                    $largeFieldsToExclude = ['text', 'description', 'keywords', 'subjectOf', 'about', 'funder', 'spatialCoverage', 'geo', 'potentialAction', 'mentions', 'hasCourseInstance'];
+                    $largeFieldsToExclude = [
+                        'text', 'description', 'keywords', 'subjectOf', 'about', 'funder', 'spatialCoverage', 'geo', 'potentialAction', 'mentions', 'hasCourseInstance',
+                        'schema:description', 'schema:keywords', 'schema:subjectOf', 'schema:about', 'schema:funder', 'schema:spatialCoverage', 'schema:geo', 'schema:potentialAction', 'schema:mentions'
+                    ];
                     foreach ($largeFieldsToExclude as $field) {
                         if (isset($item[$field]) && is_string($item[$field]) && strlen($item[$field]) > 10000) {
                             $item[$field] = substr($item[$field], 0, 10000) . '... (truncated for index efficiency)';
@@ -569,11 +797,18 @@ class OdisCrawler
                 $this->log("Failed to index item from $url: " . $message, 'error');
                 $this->invalidJsonLdsCount++;
                 $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-                $this->errorDetails[] = "Invalid JSON-LD format at $url: $shortMessage";
+                $this->errorDetails[] = [
+                    'id' => $this->currentDatasourceId,
+                    'message' => "Invalid JSON-LD format at $url: $shortMessage"
+                ];
                 if ($this->currentStat) {
                     $this->currentStat->incrementEntryRecordsFound();
                     $this->currentStat->incrementEntryErrorsCount();
                     $this->currentStat->addEntryError("Indexing error: " . $shortMessage);
+                    $this->currentStat->addErrorDetail([
+                        'id' => $this->currentDatasourceId,
+                        'message' => "Invalid JSON-LD format at $url: $shortMessage"
+                    ]);
                 }
             }
                 }
@@ -585,10 +820,17 @@ class OdisCrawler
             } else {
                 $this->log("No JSON-LD found at $url", 'warning');
                 $this->invalidJsonLdsCount++;
-                $this->errorDetails[] = "No JSON-LD found at $url";
+                $this->errorDetails[] = [
+                    'id' => $this->currentDatasourceId,
+                    'message' => "No JSON-LD found at $url"
+                ];
                 if ($this->currentStat) {
                     $this->currentStat->incrementEntryErrorsCount();
                     $this->currentStat->addEntryError("No JSON-LD found at $url");
+                    $this->currentStat->addErrorDetail([
+                        'id' => $this->currentDatasourceId,
+                        'message' => "No JSON-LD found at $url"
+                    ]);
                 }
             }
         } catch (\Exception $e) {
@@ -596,23 +838,39 @@ class OdisCrawler
             $this->log("Error fetching/indexing data from $url: " . $message, 'error');
             $this->invalidJsonLdsCount++;
             
+            $solution = $this->getSolutionForError($message);
+            $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
+            $fullMessageWithSolution = "$shortMessage. $solution";
+            
             // Categorize errors
             if (str_contains($message, '400 Bad Request') || str_contains($message, 'document_parsing_exception')) {
                 // This is a data/mapping error (Invalid Format)
-                $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-                $this->errorDetails[] = "Invalid JSON-LD format at $url: $shortMessage";
+                $this->errorDetails[] = [
+                    'id' => $this->currentDatasourceId,
+                    'message' => "Invalid JSON-LD format at $url: $fullMessageWithSolution"
+                ];
                 if ($this->currentStat) {
                     $this->currentStat->incrementEntryErrorsCount();
-                    $this->currentStat->addEntryError("Format error: " . $shortMessage);
+                    $this->currentStat->addEntryError("Format error: " . $fullMessageWithSolution);
+                    $this->currentStat->addErrorDetail([
+                        'id' => $this->currentDatasourceId,
+                        'message' => "Invalid JSON-LD format at $url: $fullMessageWithSolution"
+                    ]);
                 }
             } else {
                 // This is a network or other system error
                 $this->crawlerErrorsCount++;
-                $shortMessage = strlen($message) > 500 ? substr($message, 0, 500) . '...' : $message;
-                $this->errorDetails[] = "Error fetching data from $url: $shortMessage";
+                $this->errorDetails[] = [
+                    'id' => $this->currentDatasourceId,
+                    'message' => "Error fetching data from $url: $fullMessageWithSolution"
+                ];
                 if ($this->currentStat) {
                     $this->currentStat->incrementEntryErrorsCount();
-                    $this->currentStat->addEntryError("Fetch error: " . $shortMessage);
+                    $this->currentStat->addEntryError("Fetch error: " . $fullMessageWithSolution);
+                    $this->currentStat->addErrorDetail([
+                        'id' => $this->currentDatasourceId,
+                        'message' => "Error fetching data from $url: $fullMessageWithSolution"
+                    ]);
                 }
             }
         }
@@ -634,12 +892,30 @@ class OdisCrawler
                     if (empty($json)) return;
                     
                     $decoded = json_decode($json, true);
+                    if ($decoded === null && !empty($json)) {
+                        $jsonError = json_last_error_msg();
+                        $solution = $this->getSolutionForError($jsonError);
+                        $this->log("Failed to decode JSON-LD snippet: $jsonError. $solution (first 100 chars: " . substr($json, 0, 100) . ")", 'warning');
+                    }
                     unset($json); // Clear large string
                     
                     if ($decoded) {
                         if (isset($decoded['@graph']) && is_array($decoded['@graph'])) {
                             foreach ($decoded['@graph'] as $item) {
                                 $results[] = $item;
+                            }
+                        } elseif (isset($decoded['@type']) && (is_string($decoded['@type']) ? $decoded['@type'] === 'ItemList' : in_array('ItemList', $decoded['@type'])) && isset($decoded['itemListElement'])) {
+                            foreach ($decoded['itemListElement'] as $element) {
+                                if (isset($element['item'])) {
+                                    $results[] = $element['item'];
+                                } else {
+                                    $results[] = $element;
+                                }
+                            }
+                        } elseif (isset($decoded['hasPart'])) {
+                            $parts = is_array($decoded['hasPart']) ? $decoded['hasPart'] : [$decoded['hasPart']];
+                            foreach ($parts as $part) {
+                                $results[] = $part;
                             }
                         } else {
                             $results[] = $decoded;

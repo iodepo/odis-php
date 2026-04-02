@@ -113,10 +113,19 @@ class CrawlStatRepository extends ServiceEntityRepository
         foreach ($stats as $stat) {
             if (isset($stat['errorDetails']) && is_array($stat['errorDetails'])) {
                 foreach ($stat['errorDetails'] as $error) {
+                    $id = null;
+                    $message = $error;
+                    
+                    if (is_array($error)) {
+                        $id = $error['id'] ?? null;
+                        $message = $error['message'] ?? '';
+                    }
+
                     $allErrors[] = [
                         'crawl_id' => $stat['id'],
                         'date' => $stat['createdAt'],
-                        'message' => $error,
+                        'message' => $message,
+                        'datasource_id' => $id,
                         'crawl_type' => $stat['type']
                     ];
                 }

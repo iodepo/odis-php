@@ -159,7 +159,13 @@
                                             <h6 class="font-weight-bold">Error Log:</h6>
                                             <ul class="mb-0 small text-danger">
                                                 {% for error in stat.errorDetails %}
-                                                    <li>{{ error }}</li>
+                                                    <li>
+                                                        {% if error is iterable %}
+                                                            {{ error.message|default('Unknown error') }}
+                                                        {% else %}
+                                                            {{ error }}
+                                                        {% endif %}
+                                                    </li>
                                                 {% endfor %}
                                             </ul>
                                         {% endif %}
@@ -215,7 +221,14 @@
                                         <div class="small font-weight-bold text-muted mb-1">Recent Errors:</div>
                                         <ul class="list-unstyled mb-0 small text-danger">
                                             {% for error in entry.errors %}
-                                            <li class="text-truncate" title="{{ error }}"><i class="fa fa-exclamation-triangle mr-1"></i> {{ error }}</li>
+                                            <li class="text-truncate" title="{% if error is iterable %}{{ error.message|default('') }}{% else %}{{ error }}{% endif %}">
+                                                <i class="fa fa-exclamation-triangle mr-1"></i>
+                                                {% if error is iterable %}
+                                                    {{ error.message|default('Unknown error') }}
+                                                {% else %}
+                                                    {{ error }}
+                                                {% endif %}
+                                            </li>
                                             {% endfor %}
                                         </ul>
                                     </div>
@@ -296,7 +309,8 @@
                                     processedHtml += '            <div class="small font-weight-bold text-muted mb-1">Recent Errors:</div>';
                                     processedHtml += '            <ul class="list-unstyled mb-0 small text-danger">';
                                     entry.errors.forEach(function(error) {
-                                        processedHtml += '                <li class="text-truncate" title="' + error + '"><i class="fa fa-exclamation-triangle mr-1"></i> ' + error + '</li>';
+                                        var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
+                                        processedHtml += '                <li class="text-truncate" title="' + message + '"><i class="fa fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
                                     });
                                     processedHtml += '            </ul>';
                                     processedHtml += '        </div>';
@@ -365,7 +379,8 @@
                                     html += '<h6 class="font-weight-bold">Error Log:</h6>';
                                     html += '<ul class="mb-0 small text-danger">';
                                     stat.errorDetails.forEach(function(error) {
-                                        html += '<li>' + error + '</li>';
+                                        var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
+                                        html += '<li>' + message + '</li>';
                                     });
                                     html += '</ul>';
                                 }
