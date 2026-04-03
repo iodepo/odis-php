@@ -41,6 +41,13 @@ class RobotsTxtManager
 
         $rules = $this->getRules($scheme, $host);
         
+        // Check Allow rules first (standard robots.txt behavior)
+        foreach ($rules['allow'] as $allowedPath) {
+            if ($this->matchPath($path, $allowedPath)) {
+                return true;
+            }
+        }
+
         // Check Disallow rules
         foreach ($rules['disallow'] as $disallowedPath) {
             if ($this->matchPath($path, $disallowedPath)) {
@@ -95,6 +102,7 @@ class RobotsTxtManager
         }
 
         $rules = [
+            'allow' => [],
             'disallow' => [],
             'crawl-delay' => 0,
         ];
@@ -118,6 +126,7 @@ class RobotsTxtManager
     private function parseRobotsTxt(string $content): array
     {
         $rules = [
+            'allow' => [],
             'disallow' => [],
             'crawl-delay' => 0,
         ];
@@ -145,6 +154,11 @@ class RobotsTxtManager
                 $path = trim($matches[1]);
                 if (!empty($path)) {
                     $rules['disallow'][] = $path;
+                }
+            } elseif (preg_match('/^Allow:\s*(.*)$/i', $line, $matches)) {
+                $path = trim($matches[1]);
+                if (!empty($path)) {
+                    $rules['allow'][] = $path;
                 }
             } elseif (preg_match('/^Crawl-delay:\s*([0-9\.]+)$/i', $line, $matches)) {
                 $rules['crawl-delay'] = (float)$matches[1];
