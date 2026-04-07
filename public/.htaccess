@@ -1,0 +1,47 @@
+# Use the front controller as index file. It serves as a fallback solution when
+# every other rewrite/redirect fails (e.g. in an alias).
+DirectoryIndex index.php
+
+# By default, Apache does not follow symbolic links.
+# If your system does not support symbolic links, you may need to disable it.
+# See https://httpd.apache.org/docs/current/mod/core.html#options
+# Options -FollowSymLinks
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Determine the RewriteBase automatically and set it as env variable 'base'
+    # RewriteBase /
+
+    # If you plan to support multibyte characters in URLs, use the [B] flag.
+    # See https://httpd.apache.org/docs/current/mod/mod_rewrite.html#rewritetags
+
+    # Redirect to URI without front controller to prevent duplicate content
+    # (with and without `/index.php`). Only do this redirect on the initial
+    # rewrite by Apache and not on subsequent cycles. Otherwise we would get an
+    # endless redirect loop (request -> rewrite to /index.php -> redirect -> ...).
+    # So in case you get a "too many redirects" error or you always get redirected
+    # to /index.php (even if you actually requested /index.php), then comment out
+    # these two lines.
+    RewriteCond %{ENV:REDIRECT_STATUS} ^$
+    RewriteRule ^index\.php(?:/(.*)|$) %{PREFIX_REDIRECT}%{CONTEXT_PREFIX}/$1 [R=301,L]
+
+    # If the requested filename exists, simply serve it.
+    # We only want to let Apache serve files and not directories.
+    # If you want to let Apache serve directories for some reason, remove the !-d condition.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Rewrite all other queries to the front controller.
+    RewriteRule ^ %{PREFIX_REDIRECT}%{CONTEXT_PREFIX}/index.php [L]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    <IfModule mod_alias.c>
+        # When mod_rewrite is not available, we instruct a temporary redirect to
+        # the front controller explicitly so that the website and the generated
+        # links can still be used.
+        RedirectMatch 307 ^/$ /index.php/
+        # RedirectTemp cannot be used instead
+    </IfModule>
+</IfModule>
