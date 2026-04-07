@@ -43,6 +43,10 @@
                             <code>php bin/console app:odis:crawl --limit 10</code>
                         </div>
                         <div class="mb-2">
+                            <span class="text-muted small font-weight-bold text-success">{{ 'home.generate_graph'|trans }}</span><br>
+                            <code>php bin/console app:odis:crawl --graph var/graph.jsonld</code>
+                        </div>
+                        <div class="mb-2">
                             <span class="text-muted small font-weight-bold text-danger">{{ 'home.clear_index'|trans }}</span><br>
                             <code>php bin/console app:odis:crawl --clear-index</code>
                         </div>

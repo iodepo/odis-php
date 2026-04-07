@@ -18,6 +18,9 @@ php bin/console app:odis:crawl --parallel --concurrency 5
 # Targeted crawl (by ID)
 php bin/console app:odis:crawl 3215 3125
 
+# Generate a SPARQL-compatible graph (JSON-LD Lines)
+php bin/console app:odis:crawl --graph var/output.jsonld
+
 # Clear Elasticsearch index before starting (mandatory for mapping fixes)
 php bin/console app:odis:crawl --clear-index
 ```

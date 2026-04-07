@@ -38,6 +38,7 @@ class OdisCrawlCommand extends Command
             ->addOption('parallel', 'p', InputOption::VALUE_NONE, 'Run crawl in parallel sessions for each datasource')
             ->addOption('concurrency', 'c', InputOption::VALUE_REQUIRED, 'Max concurrent processes for parallel crawl', 5)
             ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of records crawled per datasource', 0)
+            ->addOption('graph', 'g', InputOption::VALUE_REQUIRED, 'Path to save the generated SPARQL-compatible graph (JSON-LD Lines)')
             ->addOption('clear-index', null, InputOption::VALUE_NONE, 'Clear the Elasticsearch index before starting the crawl');
     }
 
@@ -61,6 +62,18 @@ class OdisCrawlCommand extends Command
         $limit = (int) $input->getOption('limit');
         if ($limit > 0) {
             $this->crawler->setLimit($limit);
+        }
+
+        $graphPath = $input->getOption('graph');
+        if ($graphPath) {
+            // Ensure directory exists
+            $dir = dirname($graphPath);
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            // Clear existing file
+            file_put_contents($graphPath, '');
+            $this->crawler->setGraphFile($graphPath);
         }
 
         if ($input->getOption('clear-index')) {
@@ -136,6 +149,11 @@ class OdisCrawlCommand extends Command
                 if ($limit > 0) {
                     $args[] = '--limit';
                     $args[] = (string) $limit;
+                }
+                $graphPath = $input->getOption('graph');
+                if ($graphPath) {
+                    $args[] = '--graph';
+                    $args[] = $graphPath;
                 }
                 $process = new Process($args);
                 $process->start();

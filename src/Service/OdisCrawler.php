@@ -35,6 +35,7 @@ class OdisCrawler
     private int $lastUpdateTimestamp = 0;
     private string $currentDatasourceId = '';
     private string $commandLine = '';
+    private ?string $graphFile = null;
     private RobotsTxtManager $robotsManager;
 
     public function __construct(Client $esClient, LoggerInterface $logger, EntityManagerInterface $entityManager, RobotsTxtManager $robotsManager)
@@ -65,6 +66,11 @@ class OdisCrawler
     public function setLimit(int $limit): void
     {
         $this->limit = $limit;
+    }
+
+    public function setGraphFile(?string $path): void
+    {
+        $this->graphFile = $path;
     }
 
     private function log(string $message, string $level = 'info'): void
@@ -723,7 +729,39 @@ class OdisCrawler
             }
             
             if ($data) {
-                // ...
+                // Index into Elasticsearch
+                try {
+                    $id = $data['@id'] ?? $url;
+                    $params = [
+                        'index' => $this->esIndex,
+                        'id' => $id,
+                        'body' => $data
+                    ];
+                    $this->esClient->index($params);
+                    $this->validJsonLdsCount++;
+                    if ($this->currentStat) {
+                        $this->currentStat->incrementEntryValidJsonLds();
+                    }
+                } catch (\Exception $e) {
+                    $this->log("Error indexing data for $url: " . $e->getMessage(), 'error');
+                    $this->crawlerErrorsCount++;
+                }
+
+                // If graph generation is enabled, append to file
+                if ($this->graphFile) {
+                    try {
+                        // Ensure data has @context for JSON-LD validity if it's missing but we have it from extraction
+                        if (!isset($data['@context'])) {
+                             // This might happen if extractJsonLdFromHtml didn't preserve it or if it's missing in source
+                        }
+                        
+                        // Using JSON_UNESCAPED_SLASHES and JSON_UNESCAPED_UNICODE for cleaner RDF output
+                        $jsonLine = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                        file_put_contents($this->graphFile, $jsonLine . "\n", FILE_APPEND);
+                    } catch (\Exception $e) {
+                        $this->log("Error writing to graph file: " . $e->getMessage(), 'error');
+                    }
+                }
             } else {
                 $this->log("No JSON-LD found at $url. Content-Type: $contentType. Body starts with: " . substr($body, 0, 100), 'warning');
                 $this->invalidJsonLdsCount++;
