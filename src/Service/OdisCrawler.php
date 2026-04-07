@@ -720,10 +720,58 @@ class OdisCrawler
                 if (!$data) {
                     $data = $this->extractJsonLdFromHtml($body);
                 }
+                unset($body); // Free memory immediately
             }
             
             if ($data) {
-                // ...
+                if (isset($data['@graph']) && is_array($data['@graph']) && count($data['@graph']) > 1) {
+                    $this->log("Large @graph detected at $url (" . count($data['@graph']) . " items). Indexing individually.", 'info');
+                    $graph = $data['@graph'];
+                    unset($data); // Free parent immediately
+                    foreach ($graph as $index => $item) {
+                        if ($this->limit > 0 && $this->validJsonLdsCount >= $this->limit) {
+                            break;
+                        }
+                        $itemId = $item['@id'] ?? $item['id'] ?? md5($url . $index);
+                        $params = [
+                            'index' => 'odis_metadata',
+                            'id'    => md5($itemId),
+                            'body'  => [
+                                'url' => $url,
+                                'data' => $item,
+                                'datasource_id' => $this->currentDatasourceId,
+                                'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
+                            ]
+                        ];
+                        try {
+                            $this->esClient->index($params);
+                            $this->validJsonLdsCount++;
+                        } catch (\Exception $e) {
+                            $this->log("Failed to index item from $url: " . $e->getMessage(), 'error');
+                        }
+                        unset($graph[$index]); // Free item after indexing
+                    }
+                    unset($graph);
+                } else {
+                    $this->log("Indexing data from $url", 'debug');
+                    $params = [
+                        'index' => 'odis_metadata',
+                        'id'    => md5($url),
+                        'body'  => [
+                            'url' => $url,
+                            'data' => $data,
+                            'datasource_id' => $this->currentDatasourceId,
+                            'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
+                        ]
+                    ];
+                    unset($data); // Free memory before indexing
+                    try {
+                        $this->esClient->index($params);
+                        $this->validJsonLdsCount++;
+                    } catch (\Exception $e) {
+                        $this->log("Failed to index item from $url: " . $e->getMessage(), 'error');
+                    }
+                }
             } else {
                 $this->log("No JSON-LD found at $url. Content-Type: $contentType. Body starts with: " . substr($body, 0, 100), 'warning');
                 $this->invalidJsonLdsCount++;
