@@ -49,6 +49,7 @@ class OdisCrawler
             'verify' => false,
             'headers' => [
                 'Accept' => 'text/html,application/json,application/ld+json;q=0.9,*/*;q=0.8',
+                'User-Agent' => 'ODIS https://search.odis.org',
             ]
         ]);
     }

@@ -11,7 +11,7 @@ class RobotsTxtManager
     private LoggerInterface $logger;
     private array $cache = [];
     private array $lastRequestTime = [];
-    private string $userAgent = 'OdisCrawler/1.0';
+    private string $userAgent = 'ODIS https://search.odis.org';
 
     public function __construct(LoggerInterface $logger)
     {
