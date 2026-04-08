@@ -20,10 +20,13 @@ class DashboardApiController extends AbstractController
         $history = $repository->findBy([], ['id' => 'DESC'], 100);
 
         $totalValid = 0;
+        $esError = null;
         try {
             $response = $esClient->count(['index' => 'odis_metadata']);
             $totalValid = $response['count'];
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+            $esError = 'Elasticsearch unavailable';
+        }
 
         // Calculate cumulative metrics
         $totalNodes = $repository->countUniqueNodesFound();
@@ -57,6 +60,7 @@ class DashboardApiController extends AbstractController
 
         return new JsonResponse([
             'totalValid' => $totalValid,
+            'esError' => $esError,
             'totalNodes' => $totalNodes,
             'totalPages' => $totalPages,
             'totalInvalid' => $totalInvalid,

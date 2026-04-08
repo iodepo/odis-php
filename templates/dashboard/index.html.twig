@@ -29,6 +29,13 @@
     </div>
 
     <div class="row justify-content-center">
+        <div class="col-md-12 {% if not esError %}d-none{% endif %}">
+            <div class="alert alert-warning shadow-sm border-warning">
+                <h5 class="alert-heading text-warning-emphasis"><i class="fa fa-exclamation-triangle mr-2"></i> Elasticsearch Issue</h5>
+                <p class="mb-0" id="es-error-alert">{{ esError }}</p>
+            </div>
+        </div>
+
         {% for message in app.flashes('success') %}
             <div class="col-md-12">
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -298,6 +305,12 @@
                 });
 
                 $.getJSON('{{ path('app_api_dashboard_status') }}?t=' + new Date().getTime(), function(data) {
+                    if (data.esError) {
+                        $('#es-error-alert').text(data.esError).parent().removeClass('d-none');
+                    } else {
+                        $('#es-error-alert').parent().addClass('d-none');
+                    }
+
                     if (data.latest) {
                         $('#stat-nodes').text(data.totalNodes);
                         $('#stat-pages').text(data.totalPages);

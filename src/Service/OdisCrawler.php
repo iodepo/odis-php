@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Transport\Exception\NoNodeAvailableException;
 use GuzzleHttp\Client as GuzzleClient;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
@@ -238,9 +239,19 @@ class OdisCrawler
     public function clearIndex(): void
     {
         $params = ['index' => $this->esIndex];
-        if ($this->esClient->indices()->exists($params)->asBool()) {
-            $this->esClient->indices()->delete($params);
-            $this->log("Deleted Elasticsearch index: {$this->esIndex}");
+        try {
+            if ($this->esClient->indices()->exists($params)->asBool()) {
+                $this->esClient->indices()->delete($params);
+                $this->log("Deleted Elasticsearch index: {$this->esIndex}");
+            }
+        } catch (NoNodeAvailableException $e) {
+            $message = "Elasticsearch connection failed: " . $e->getMessage() . ". Solution: Please check your ELASTICSEARCH_URL in .env.local and ensure the Elasticsearch service is running.";
+            $this->log($message, 'error');
+            throw new \RuntimeException($message, 0, $e);
+        } catch (\Exception $e) {
+            $message = "Failed to clear Elasticsearch index: " . $e->getMessage();
+            $this->log($message, 'error');
+            throw new \RuntimeException($message, 0, $e);
         }
     }
 
@@ -260,7 +271,6 @@ class OdisCrawler
                             'description' => ['type' => 'text'],
                             'keywords' => ['type' => 'flattened'],
                             'knowsAbout' => ['type' => 'flattened'],
-                            'contributor' => ['type' => 'flattened'],
                             'distribution' => ['type' => 'flattened'],
                             'identifier' => ['type' => 'flattened'],
                             'creator' => ['type' => 'flattened'],
@@ -603,6 +613,14 @@ class OdisCrawler
 
     private function getSolutionForError(string $message): string
     {
+        if (str_contains($message, 'No alive nodes') || str_contains($message, 'NoNodeAvailableException')) {
+            return "Elasticsearch is unreachable. Solution: Check your ELASTICSEARCH_URL in .env.local and ensure the Elasticsearch service is running and accessible from the server.";
+        }
+        
+        if (str_contains($message, '401 Unauthorized') || str_contains($message, '403 Forbidden')) {
+            return "Elasticsearch authentication failed. Solution: Check ELASTICSEARCH_USER and ELASTICSEARCH_PASSWORD in your .env.local.";
+        }
+
         if (str_contains($message, '400 Bad Request') || str_contains($message, 'document_parsing_exception') || str_contains($message, 'illegal_argument_exception')) {
             if (str_contains($message, 'failed to parse field')) {
                 preg_match('/failed to parse field \[([^\]]+)\] of type \[([^\]]+)\]/', $message, $matches);

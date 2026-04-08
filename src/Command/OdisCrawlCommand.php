@@ -5,6 +5,8 @@ namespace App\Command;
 use App\Service\OdisCrawler;
 use App\Entity\CrawlStat;
 use Doctrine\ORM\EntityManagerInterface;
+use Elastic\Elasticsearch\Client;
+use Elastic\Transport\Exception\NoNodeAvailableException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -22,12 +24,14 @@ class OdisCrawlCommand extends Command
 {
     private OdisCrawler $crawler;
     private EntityManagerInterface $entityManager;
+    private Client $esClient;
 
-    public function __construct(OdisCrawler $crawler, EntityManagerInterface $entityManager)
+    public function __construct(OdisCrawler $crawler, EntityManagerInterface $entityManager, Client $esClient)
     {
         parent::__construct();
         $this->crawler = $crawler;
         $this->entityManager = $entityManager;
+        $this->esClient = $esClient;
     }
 
     protected function configure(): void
@@ -63,9 +67,29 @@ class OdisCrawlCommand extends Command
             $this->crawler->setLimit($limit);
         }
 
+        // Pre-flight: ensure Elasticsearch is reachable before any ES operation
+        try {
+            if (!$this->esClient->ping()->asBool()) {
+                $io->error('Elasticsearch did not respond to ping. Please ensure it is running and reachable.');
+                return Command::FAILURE;
+            }
+        } catch (NoNodeAvailableException $e) {
+            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
+            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
+            return Command::FAILURE;
+        } catch (\Throwable $e) {
+            $io->error('Failed to contact Elasticsearch: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+
         if ($input->getOption('clear-index')) {
             $io->warning('Clearing Elasticsearch index...');
-            $this->crawler->clearIndex();
+            try {
+                $this->crawler->clearIndex();
+            } catch (\Throwable $e) {
+                $io->error($e->getMessage());
+                return Command::FAILURE;
+            }
         }
 
         $ids = $this->parseIds($input->getArgument('ids'));

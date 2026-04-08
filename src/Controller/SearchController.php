@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Transport\Exception\NoNodeAvailableException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,21 @@ class SearchController extends AbstractController
     #[Route('/search', name: 'app_search')]
     public function search(Request $request): Response
     {
+        try {
+            // Check if Elasticsearch is alive
+            $this->esClient->ping();
+        } catch (NoNodeAvailableException $e) {
+            return $this->render('search/error.html.twig', [
+                'error' => 'Elasticsearch is currently unreachable.',
+                'solution' => 'Please check the ELASTICSEARCH_URL in your configuration and ensure the Elasticsearch service is running.'
+            ]);
+        } catch (\Exception $e) {
+            return $this->render('search/error.html.twig', [
+                'error' => 'An error occurred while connecting to the search engine.',
+                'solution' => $e->getMessage()
+            ]);
+        }
+
         $query = $request->query->get('q', '');
         $sort = $request->query->get('sort', '_score');
         $order = $request->query->get('order', 'desc');

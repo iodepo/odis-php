@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use Elastic\Transport\Exception\NoNodeAvailableException;
 use App\Repository\CrawlStatRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,10 +18,15 @@ class DashboardController extends AbstractController
 
         // Fetch cumulative counts from Elasticsearch and DB
         $totalValid = 0;
+        $esError = null;
         try {
             $response = $esClient->count(['index' => 'odis_metadata']);
             $totalValid = $response['count'];
-        } catch (\Exception $e) {}
+        } catch (NoNodeAvailableException $e) {
+            $esError = 'Elasticsearch is unreachable. Please check your ELASTICSEARCH_URL configuration and ensure the service is running.';
+        } catch (\Exception $e) {
+            $esError = 'An error occurred while connecting to Elasticsearch: ' . $e->getMessage();
+        }
 
         // Calculate cumulative metrics
         $totalNodes = $repository->countUniqueNodesFound();
@@ -38,6 +44,7 @@ class DashboardController extends AbstractController
             'totalInvalid' => $totalInvalid,
             'totalIssues' => $totalIssues,
             'processedEntries' => $processedEntries,
+            'esError' => $esError,
         ]);
     }
 
