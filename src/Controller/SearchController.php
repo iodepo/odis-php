@@ -94,9 +94,17 @@ class SearchController extends AbstractController
                         'must' => []
                     ]
                 ],
+                'runtime_mappings' => [
+                    'coalesced_type' => [
+                        'type' => 'keyword',
+                        'script' => [
+                            'source' => 'def t = null; if (params._source.containsKey("@type")) { t = params._source["@type"]; } if (t == null && params._source.containsKey("data")) { def d = params._source["data"]; if (d != null && d.containsKey("@type")) { t = d["@type"]; } } if (t == null) return; if (t instanceof List) { for (def v : t) { if (v != null) emit(v); } } else { emit(t); }'
+                        ]
+                    ]
+                ],
                 'aggs' => [
                     'types' => [
-                        'terms' => ['field' => '@type.keyword', 'size' => 10]
+                        'terms' => ['field' => 'coalesced_type', 'size' => 20]
                     ]
                 ]
             ]
@@ -139,7 +147,7 @@ class SearchController extends AbstractController
 
         if (!empty($typeFilter)) {
             $params['body']['query']['bool']['filter'] = [
-                ['terms' => ['@type.keyword' => (array) $typeFilter]]
+                ['terms' => ['coalesced_type' => (array) $typeFilter]]
             ];
         }
 
