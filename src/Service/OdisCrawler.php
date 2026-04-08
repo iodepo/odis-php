@@ -343,6 +343,7 @@ class OdisCrawler
                 'schema:contactPoint' => ['type' => 'flattened'],
                 'inLanguage' => ['type' => 'flattened'],
                 'schema:inLanguage' => ['type' => 'flattened'],
+                'text' => ['type' => 'text'],
                 '@context' => ['type' => 'flattened']
             ]
         ];
@@ -761,15 +762,17 @@ class OdisCrawler
                             break;
                         }
                         $itemId = $item['@id'] ?? $item['id'] ?? md5($url . $index);
+                        if (!isset($item['text'])) {
+                            $item['text'] = ($item['name'] ?? '') . ' ' . ($item['description'] ?? '');
+                        }
                         $params = [
                             'index' => 'odis_metadata',
                             'id'    => md5($itemId),
-                            'body'  => [
+                            'body'  => array_merge($item, [
                                 'url' => $url,
-                                'data' => $item,
                                 'datasource_id' => $this->currentDatasourceId,
                                 'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
-                            ]
+                            ])
                         ];
                         try {
                             $this->esClient->index($params);
@@ -782,15 +785,17 @@ class OdisCrawler
                     unset($graph);
                 } else {
                     $this->log("Indexing data from $url", 'debug');
+                    if (!isset($data['text'])) {
+                        $data['text'] = ($data['name'] ?? '') . ' ' . ($data['description'] ?? '');
+                    }
                     $params = [
                         'index' => 'odis_metadata',
                         'id'    => md5($url),
-                        'body'  => [
+                        'body'  => array_merge($data, [
                             'url' => $url,
-                            'data' => $data,
                             'datasource_id' => $this->currentDatasourceId,
                             'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
-                        ]
+                        ])
                     ];
                     unset($data); // Free memory before indexing
                     try {
