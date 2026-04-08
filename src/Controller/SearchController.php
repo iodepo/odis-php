@@ -95,11 +95,8 @@ class SearchController extends AbstractController
                     ]
                 ],
                 'aggs' => [
-                    'types_root' => [
-                        'terms' => ['field' => '@type.keyword', 'size' => 20]
-                    ],
-                    'types_legacy' => [
-                        'terms' => ['field' => 'data.@type.keyword', 'size' => 20]
+                    'types' => [
+                        'terms' => ['field' => '@type.keyword', 'size' => 10]
                     ]
                 ]
             ]
@@ -142,15 +139,7 @@ class SearchController extends AbstractController
 
         if (!empty($typeFilter)) {
             $params['body']['query']['bool']['filter'] = [
-                [
-                    'bool' => [
-                        'should' => [
-                            ['terms' => ['@type.keyword' => (array) $typeFilter]],
-                            ['terms' => ['data.@type.keyword' => (array) $typeFilter]]
-                        ],
-                        'minimum_should_match' => 1
-                    ]
-                ]
+                ['terms' => ['@type.keyword' => (array) $typeFilter]]
             ];
         }
 
@@ -169,26 +158,8 @@ class SearchController extends AbstractController
             $response = $this->esClient->search($params);
             $results = $response['hits']['hits'];
             $totalResults = $response['hits']['total']['value'] ?? 0;
-            // Merge type buckets from root and legacy fields
-            $merged = [];
-            if (isset($response['aggregations']['types_root']['buckets'])) {
-                foreach ($response['aggregations']['types_root']['buckets'] as $b) {
-                    $merged[$b['key']] = ($merged[$b['key']] ?? 0) + ($b['doc_count'] ?? 0);
-                }
-            }
-            if (isset($response['aggregations']['types_legacy']['buckets'])) {
-                foreach ($response['aggregations']['types_legacy']['buckets'] as $b) {
-                    $merged[$b['key']] = ($merged[$b['key']] ?? 0) + ($b['doc_count'] ?? 0);
-                }
-            }
-            if (!empty($merged)) {
-                // Convert back to buckets sorted by count desc
-                arsort($merged);
-                $facets['types'] = [];
-                foreach ($merged as $key => $count) {
-                    $facets['types'][] = ['key' => $key, 'doc_count' => $count];
-                    if (count($facets['types']) >= 20) break;
-                }
+            if (isset($response['aggregations']['types']['buckets'])) {
+                $facets['types'] = $response['aggregations']['types']['buckets'];
             }
             unset($response);
             gc_collect_cycles();
