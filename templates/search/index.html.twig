@@ -292,9 +292,10 @@
                                     
                                     <h6 class="card-subtitle mb-2 text-muted small">
                                         <i class="fa fa-link mr-1"></i>{{ primaryLink != '#' ? primaryLink : 'No URL available'|trans }}
-                                        {% if attribute(source, '@type') is defined %}
+                                        {% set typeBadge = attribute(source, '@type') is defined ? attribute(source, '@type') : (attribute(source, 'data') is defined and attribute(source.data, '@type') is defined ? attribute(source.data, '@type') : null) %}
+                                        {% if typeBadge is not null %}
                                             <span class="ml-2 badge badge-pill badge-light border">
-                                                {{ attribute(source, '@type') is iterable ? attribute(source, '@type')|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : attribute(source, '@type')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
+                                                {{ typeBadge is iterable ? typeBadge|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : typeBadge|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
                                             </span>
                                         {% endif %}
                                     </h6>
