@@ -98,7 +98,7 @@ class SearchController extends AbstractController
                     'coalesced_type' => [
                         'type' => 'keyword',
                         'script' => [
-                            'source' => 'def t = null; if (params._source.containsKey("@type")) { t = params._source["@type"]; } if (t == null && params._source.containsKey("data")) { def d = params._source["data"]; if (d != null && d.containsKey("@type")) { t = d["@type"]; } } if (t == null) return; if (t instanceof List) { for (def v : t) { if (v != null) emit(v); } } else { emit(t); }'
+                            'source' => 'def t = null; if (params._source.containsKey("@type")) { t = params._source["@type"]; if (t instanceof List) { for (def v : t) { if (v != null) emit(v.toString()); } } else if (t != null) { emit(t.toString()); } } else if (params._source.containsKey("data")) { def d = params._source["data"]; if (d == null) return; if (d instanceof Map) { t = d["@type"]; if (t instanceof List) { for (def v : t) { if (v != null) emit(v.toString()); } } else if (t != null) { emit(t.toString()); } } else if (d instanceof List) { for (def e : d) { if (e instanceof Map && e.containsKey("@type")) { def tv = e["@type"]; if (tv instanceof List) { for (def v2 : tv) { if (v2 != null) emit(v2.toString()); } } else if (tv != null) { emit(tv.toString()); } } } } }'
                         ]
                     ]
                 ],
