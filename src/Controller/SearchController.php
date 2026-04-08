@@ -75,7 +75,7 @@ class SearchController extends AbstractController
             'body'  => [
                 '_source' => [
                     'excludes' => [
-                        'text', 'description', 'keywords', 'attendee.*', 'contributor.*', 'organizer.*',
+                        'text', 'attendee.*', 'contributor.*', 'organizer.*',
                         'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'hasCourseInstance.*',
                         'variableMeasured.*', 'distribution.*', 'subjectOf.*', 'about.*', 'funder.*', 'publisher.*',
                         'spatialCoverage.*', 'geo.*', 'potentialAction.*', 'identifier.*', 'image.*', 'mentions.*',

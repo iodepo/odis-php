@@ -241,19 +241,23 @@
                                                 {% if hit.highlight is defined and hit.highlight.name is defined %}
                                                     {{ hit.highlight.name[0]|raw }}
                                                 {% else %}
-                                                    {% set name = source.name is defined 
-                                                        ? (source.name is iterable 
-                                                            ? (source.name.name is defined 
-                                                                ? source.name.name 
-                                                                : (attribute(source.name, 'schema:name') is defined 
-                                                                    ? attribute(source.name, 'schema:name')
-                                                                    : (source.name|first is iterable 
-                                                                        ? (source.name|first).name|default(attribute(source.name|first, 'schema:name')|default(source.name|join(', '))) 
-                                                                        : source.name|join(', ')))) 
-                                                            : source.name) 
-                                                        : (attribute(source, 'schema:name') is defined 
-                                                            ? attribute(source, 'schema:name') 
-                                                            : 'Untitled Record') %}
+                                                    {% set name = (source.name is defined or attribute(source, 'schema:name') is defined or (source.data is defined and (source.data.name is defined or attribute(source.data, 'schema:name') is defined)))
+                                                        ? (source.name is defined 
+                                                            ? (source.name is iterable 
+                                                                ? (source.name.name is defined 
+                                                                    ? source.name.name 
+                                                                    : (attribute(source.name, 'schema:name') is defined 
+                                                                        ? attribute(source.name, 'schema:name')
+                                                                        : (source.name|first is iterable 
+                                                                            ? (source.name|first).name|default(attribute(source.name|first, 'schema:name')|default(source.name|join(', '))) 
+                                                                            : source.name|join(', ')))) 
+                                                                : source.name) 
+                                                            : (attribute(source, 'schema:name') is defined 
+                                                                ? attribute(source, 'schema:name') 
+                                                                : (source.data.name is defined 
+                                                                    ? (source.data.name is iterable ? source.data.name|join(', ') : source.data.name)
+                                                                    : (attribute(source.data, 'schema:name') is iterable ? attribute(source.data, 'schema:name')|join(', ') : attribute(source.data, 'schema:name')))))
+                                                        : 'Untitled Record' %}
                                                     {{ name is iterable ? name|join(', ') : name }}
                                                 {% endif %}
                                             </a>
@@ -310,10 +314,14 @@
                                             </div>
                                         {% else %}
                                             <p class="mb-2">
-                                            {% set description = (source.description is defined or attribute(source, 'schema:description') is defined) 
+                                            {% set description = (source.description is defined or attribute(source, 'schema:description') is defined or (source.data is defined and source.data.description is defined) or (source.data is defined and attribute(source.data, 'schema:description') is defined)) 
                                                 ? (source.description is defined 
                                                     ? (source.description is iterable ? source.description|join(' ') : source.description)
-                                                    : (attribute(source, 'schema:description') is iterable ? attribute(source, 'schema:description')|join(' ') : attribute(source, 'schema:description')))
+                                                    : (attribute(source, 'schema:description') is defined 
+                                                        ? (attribute(source, 'schema:description') is iterable ? attribute(source, 'schema:description')|join(' ') : attribute(source, 'schema:description'))
+                                                        : (source.data.description is defined 
+                                                            ? (source.data.description is iterable ? source.data.description|join(' ') : source.data.description)
+                                                            : (attribute(source.data, 'schema:description') is iterable ? attribute(source.data, 'schema:description')|join(' ') : attribute(source.data, 'schema:description')))))
                                                 : 'No description provided.'|trans %}
                                                 {{ description|length > 300 ? description|slice(0, 300) ~ '...' : description }}
                                             </p>
