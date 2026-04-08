@@ -153,8 +153,10 @@ class SearchController extends AbstractController
 
         if ($sort === 'name') {
             $params['body']['sort'] = [
-                ['name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword']],
-                ['schema:name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword']],
+                ['name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword', 'missing' => '_last']],
+                ['schema:name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword', 'missing' => '_last']],
+                ['data.name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword', 'missing' => '_last']],
+                ['data.schema:name.keyword' => ['order' => $order, 'unmapped_type' => 'keyword', 'missing' => '_last']],
                 ['_score' => ['order' => 'desc']]
             ];
         } else {
