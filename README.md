@@ -75,11 +75,23 @@ php bin/console doctrine:migrations:migrate
 ### 5. Elasticsearch Setup
 
 Ensure Elasticsearch is running and accessible at the URL configured in your `.env`.
-The application will automatically create the required index (`odis_metadata`) and mappings when you first run the crawler with the `--clear-index` option:
+
+**Important**: To avoid Out-of-Memory (OOM) issues during index creation on some servers, do not use the crawler's `--clear-index` option for initial setup. Instead, use the dedicated management command:
 
 ```bash
-php bin/console app:odis:crawl --clear-index --limit 1
+# Initialize the index and mappings (safe, low memory)
+php bin/console app:odis:index:init
 ```
+
+To verify Elasticsearch is correctly configured and reachable:
+```bash
+# Using curl (from host)
+curl -k -u "$ELASTICSEARCH_USER:$ELASTICSEARCH_PASSWORD" "$ELASTICSEARCH_URL"
+
+# Should return a JSON with "tagline": "You Know, for Search"
+```
+
+The application will automatically create the required index (`odis_metadata`) and mappings when you first run the crawler if you haven't initialized it yet.
 
 ## Usage
 
@@ -109,6 +121,13 @@ php bin/console app:odis:clear-stats
 
 # Clear EVERYTHING (Search index + Stats)
 php bin/console app:odis:clear-stats --all
+
+# Initialize or Recreate Elasticsearch index only
+php bin/console app:odis:index:init
+php bin/console app:odis:index:init --recreate
+
+# Export index mappings to a JSON file (useful for manual curl setup)
+php bin/console app:odis:index:export mappings.json
 ```
 
 For more details on available options, run:
@@ -138,18 +157,30 @@ Configure your environment variables in `.env` or `.env.local`:
 
 If you see this error when running the crawler or opening the search page, it means the application cannot reach Elasticsearch.
 
-Checklist:
-- Verify service is running: `curl -k https://localhost:9200` (or `http://` if you don’t use TLS). You should get a JSON response.
-- Verify credentials: Check `ELASTICSEARCH_USER` and `ELASTICSEARCH_PASSWORD` match your cluster.
-- Verify URL and scheme:
-  - If you use self-signed TLS, either install a valid certificate or disable verification via `setSSLVerification(false)` (already configured by default in `config/services.yaml`).
-  - If your ES is plain HTTP, set `ELASTICSEARCH_URL=http://host:9200`.
-- Verify network/firewall: Port 9200 must be reachable from the PHP host.
-- If running Docker/Compose, ensure you use the container hostname (e.g. `http://elasticsearch:9200`) from within other containers, not `localhost`.
-- If ES requires a specific CA or cloud ID, configure them accordingly in the Symfony service or environment.
+#### Step 1: Verify service health (CLI)
+Run this from the same host to see if the service itself is up:
+```bash
+curl -k -u "user:pass" "https://localhost:9200"
+```
+Expect a JSON response with `"tagline": "You Know, for Search"`. If this fails, the issue is at the OS/Network/Docker level.
+
+#### Step 2: Verify PHP Environment Variables
+Symfony might be reading a different configuration than you expect. Check which `.env` files are loaded:
+```bash
+php bin/console debug:dotenv
+```
+Verify the exact values Symfony is using for Elasticsearch:
+```bash
+php bin/console debug:container --env-vars | grep ELASTICSEARCH_
+```
+
+#### Step 3: Check for Common Issues
+- **Protocol Mismatch**: Using `https://` in `.env.local` when the server only supports `http://` (or vice-versa) is a very common cause of "No alive nodes".
+- **Port/Host**: Ensure port 9200 is open and the hostname is correct (use `elasticsearch` instead of `localhost` if running inside Docker Compose).
+- **Credentials**: Double-check `ELASTICSEARCH_USER` and `ELASTICSEARCH_PASSWORD`.
 
 After fixing connectivity, re-run:
+```bash
+php bin/console app:odis:index:init --recreate
 ```
-php bin/console app:odis:crawl --clear-index --limit 1
-```
-This ensures mappings are recreated correctly before indexing.
+This ensures mappings are correctly applied.

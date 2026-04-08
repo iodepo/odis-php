@@ -255,105 +255,115 @@ class OdisCrawler
         }
     }
 
+    public function getIndexMapping(): array
+    {
+        return [
+            'properties' => [
+                'name' => [
+                    'type' => 'text',
+                    'fields' => ['keyword' => ['type' => 'keyword']]
+                ],
+                'description' => ['type' => 'text'],
+                'keywords' => ['type' => 'flattened'],
+                'knowsAbout' => ['type' => 'flattened'],
+                'distribution' => ['type' => 'flattened'],
+                'identifier' => ['type' => 'flattened'],
+                'creator' => ['type' => 'flattened'],
+                'provider' => ['type' => 'flattened'],
+                'schema:provider' => ['type' => 'flattened'],
+                'funder' => ['type' => 'flattened'],
+                'schema:funder' => ['type' => 'flattened'],
+                'publisher' => ['type' => 'flattened'],
+                'schema:publisher' => ['type' => 'flattened'],
+                'author' => ['type' => 'flattened'],
+                'schema:author' => ['type' => 'flattened'],
+                'contributor' => ['type' => 'flattened'],
+                'schema:contributor' => ['type' => 'flattened'],
+                'about' => ['type' => 'flattened'],
+                'mentions' => ['type' => 'flattened'],
+                'subjectOf' => ['type' => 'flattened'],
+                'spatialCoverage' => ['type' => 'flattened'],
+                'geo' => ['type' => 'flattened'],
+                'schema:creator' => ['type' => 'flattened'],
+                'schema:about' => ['type' => 'flattened'],
+                'schema:mentions' => ['type' => 'flattened'],
+                'schema:subjectOf' => ['type' => 'flattened'],
+                'schema:spatialCoverage' => ['type' => 'flattened'],
+                'schema:geo' => ['type' => 'flattened'],
+                'schema:distribution' => ['type' => 'flattened'],
+                'schema:identifier' => ['type' => 'flattened'],
+                'potentialAction' => ['type' => 'flattened'],
+                'schema:potentialAction' => ['type' => 'flattened'],
+                'hasCourseInstance' => ['type' => 'flattened'],
+                'schema:hasCourseInstance' => ['type' => 'flattened'],
+                'sameAs' => ['type' => 'flattened'],
+                'schema:sameAs' => ['type' => 'flattened'],
+                'variableMeasured' => ['type' => 'flattened'],
+                'schema:variableMeasured' => ['type' => 'flattened'],
+                'includedInDataCatalog' => ['type' => 'flattened'],
+                'schema:includedInDataCatalog' => ['type' => 'flattened'],
+                '@type' => [
+                    'type' => 'text',
+                    'fields' => ['keyword' => ['type' => 'keyword']]
+                ],
+                'url' => ['type' => 'keyword'],
+                'schema:name' => [
+                    'type' => 'text',
+                    'fields' => ['keyword' => ['type' => 'keyword']]
+                ],
+                'schema:description' => ['type' => 'text'],
+                'schema:keywords' => ['type' => 'flattened'],
+                'license' => ['type' => 'flattened'],
+                'schema:license' => ['type' => 'flattened'],
+                'citation' => ['type' => 'flattened'],
+                'schema:citation' => ['type' => 'flattened'],
+                'version' => ['type' => 'flattened'],
+                'schema:version' => ['type' => 'flattened'],
+                'encodingFormat' => ['type' => 'flattened'],
+                'schema:encodingFormat' => ['type' => 'flattened'],
+                'startDate' => ['type' => 'flattened'],
+                'schema:startDate' => ['type' => 'flattened'],
+                'endDate' => ['type' => 'flattened'],
+                'schema:endDate' => ['type' => 'flattened'],
+                'location' => ['type' => 'flattened'],
+                'schema:location' => ['type' => 'flattened'],
+                'arrivalBoatTerminal' => ['type' => 'flattened'],
+                'schema:arrivalBoatTerminal' => ['type' => 'flattened'],
+                'departureBoatTerminal' => ['type' => 'flattened'],
+                'schema:departureBoatTerminal' => ['type' => 'flattened'],
+                'subEvent' => ['type' => 'flattened'],
+                'schema:subEvent' => ['type' => 'flattened'],
+                'sdPublisher' => ['type' => 'flattened'],
+                'schema:sdPublisher' => ['type' => 'flattened'],
+                'datePublished' => ['type' => 'flattened'],
+                'schema:datePublished' => ['type' => 'flattened'],
+                'educationalCredentialAwarded' => ['type' => 'flattened'],
+                'schema:educationalCredentialAwarded' => ['type' => 'flattened'],
+                'contactPoint' => ['type' => 'flattened'],
+                'schema:contactPoint' => ['type' => 'flattened'],
+                'inLanguage' => ['type' => 'flattened'],
+                'schema:inLanguage' => ['type' => 'flattened'],
+                '@context' => ['type' => 'flattened']
+            ]
+        ];
+    }
+
+    public function createIndex(): void
+    {
+        $this->esClient->indices()->create([
+            'index' => $this->esIndex,
+            'body' => [
+                'mappings' => $this->getIndexMapping()
+            ]
+        ]);
+        $this->log("Created Elasticsearch index: {$this->esIndex}");
+    }
+
     private function ensureIndexExists(): void
     {
         $params = ['index' => $this->esIndex];
         if (!$this->esClient->indices()->exists($params)->asBool()) {
-            $this->esClient->indices()->create([
-                'index' => $this->esIndex,
-                'body' => [
-                    'mappings' => [
-                        'properties' => [
-                            'name' => [
-                                'type' => 'text',
-                                'fields' => ['keyword' => ['type' => 'keyword']]
-                            ],
-                            'description' => ['type' => 'text'],
-                            'keywords' => ['type' => 'flattened'],
-                            'knowsAbout' => ['type' => 'flattened'],
-                            'distribution' => ['type' => 'flattened'],
-                            'identifier' => ['type' => 'flattened'],
-                            'creator' => ['type' => 'flattened'],
-                            'provider' => ['type' => 'flattened'],
-                            'schema:provider' => ['type' => 'flattened'],
-                            'funder' => ['type' => 'flattened'],
-                            'schema:funder' => ['type' => 'flattened'],
-                            'publisher' => ['type' => 'flattened'],
-                            'schema:publisher' => ['type' => 'flattened'],
-                            'author' => ['type' => 'flattened'],
-                            'schema:author' => ['type' => 'flattened'],
-                            'contributor' => ['type' => 'flattened'],
-                            'schema:contributor' => ['type' => 'flattened'],
-                            'about' => ['type' => 'flattened'],
-                            'mentions' => ['type' => 'flattened'],
-                            'subjectOf' => ['type' => 'flattened'],
-                            'spatialCoverage' => ['type' => 'flattened'],
-                            'geo' => ['type' => 'flattened'],
-                            'schema:creator' => ['type' => 'flattened'],
-                            'schema:about' => ['type' => 'flattened'],
-                            'schema:mentions' => ['type' => 'flattened'],
-                            'schema:subjectOf' => ['type' => 'flattened'],
-                            'schema:spatialCoverage' => ['type' => 'flattened'],
-                            'schema:geo' => ['type' => 'flattened'],
-                            'schema:distribution' => ['type' => 'flattened'],
-                            'schema:identifier' => ['type' => 'flattened'],
-                            'potentialAction' => ['type' => 'flattened'],
-                            'schema:potentialAction' => ['type' => 'flattened'],
-                            'hasCourseInstance' => ['type' => 'flattened'],
-                            'schema:hasCourseInstance' => ['type' => 'flattened'],
-                            'sameAs' => ['type' => 'flattened'],
-                            'schema:sameAs' => ['type' => 'flattened'],
-                            'variableMeasured' => ['type' => 'flattened'],
-                            'schema:variableMeasured' => ['type' => 'flattened'],
-                            'includedInDataCatalog' => ['type' => 'flattened'],
-                            'schema:includedInDataCatalog' => ['type' => 'flattened'],
-                            '@type' => [
-                                'type' => 'text',
-                                'fields' => ['keyword' => ['type' => 'keyword']]
-                            ],
-                            'url' => ['type' => 'keyword'],
-                            'schema:name' => [
-                                'type' => 'text',
-                                'fields' => ['keyword' => ['type' => 'keyword']]
-                            ],
-                            'schema:description' => ['type' => 'text'],
-                            'schema:keywords' => ['type' => 'flattened'],
-                            'license' => ['type' => 'flattened'],
-                            'schema:license' => ['type' => 'flattened'],
-                            'citation' => ['type' => 'flattened'],
-                            'schema:citation' => ['type' => 'flattened'],
-                            'version' => ['type' => 'flattened'],
-                            'schema:version' => ['type' => 'flattened'],
-                            'encodingFormat' => ['type' => 'flattened'],
-                            'schema:encodingFormat' => ['type' => 'flattened'],
-                            'startDate' => ['type' => 'flattened'],
-                            'schema:startDate' => ['type' => 'flattened'],
-                            'endDate' => ['type' => 'flattened'],
-                            'schema:endDate' => ['type' => 'flattened'],
-                            'location' => ['type' => 'flattened'],
-                            'schema:location' => ['type' => 'flattened'],
-                            'arrivalBoatTerminal' => ['type' => 'flattened'],
-                            'schema:arrivalBoatTerminal' => ['type' => 'flattened'],
-                            'departureBoatTerminal' => ['type' => 'flattened'],
-                            'schema:departureBoatTerminal' => ['type' => 'flattened'],
-                            'subEvent' => ['type' => 'flattened'],
-                            'schema:subEvent' => ['type' => 'flattened'],
-                            'sdPublisher' => ['type' => 'flattened'],
-                            'schema:sdPublisher' => ['type' => 'flattened'],
-                            'datePublished' => ['type' => 'flattened'],
-                            'schema:datePublished' => ['type' => 'flattened'],
-                            'educationalCredentialAwarded' => ['type' => 'flattened'],
-                            'schema:educationalCredentialAwarded' => ['type' => 'flattened'],
-                            'contactPoint' => ['type' => 'flattened'],
-                            'schema:contactPoint' => ['type' => 'flattened'],
-                            'inLanguage' => ['type' => 'flattened'],
-                            'schema:inLanguage' => ['type' => 'flattened'],
-                            '@context' => ['type' => 'flattened']
-                        ]
-                    ]
-                ]
-            ]);
-            $this->log("Created Elasticsearch index with mappings: {$this->esIndex}");
+            $this->createIndex();
         }
     }
 
