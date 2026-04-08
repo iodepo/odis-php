@@ -76,12 +76,6 @@ php bin/console doctrine:migrations:migrate
 
 Ensure Elasticsearch is running and accessible at the URL configured in your `.env`.
 
-**Important**: To avoid Out-of-Memory (OOM) issues during index creation on some servers, do not use the crawler's `--clear-index` option for initial setup. Instead, use the dedicated management command:
-
-```bash
-# Initialize the index and mappings (safe, low memory)
-php bin/console app:odis:index:init
-```
 
 To verify Elasticsearch is correctly configured and reachable:
 ```bash
@@ -92,6 +86,18 @@ curl -k -u "$ELASTICSEARCH_USER:$ELASTICSEARCH_PASSWORD" "$ELASTICSEARCH_URL"
 ```
 
 The application will automatically create the required index (`odis_metadata`) and mappings when you first run the crawler if you haven't initialized it yet.
+
+**Important**:
+
+To avoid Out-of-Memory (OOM) issues during index creation on some servers,
+do not use the crawler's `--clear-index` option for initial setup.
+Instead, use the dedicated management command:
+
+```bash
+# Initialize the index and mappings (safe, low memory)
+php bin/console app:odis:index:init
+```
+
 
 ## Usage
 
