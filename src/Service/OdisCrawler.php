@@ -756,7 +756,7 @@ class OdisCrawler
                 // - JSON-LD object with an '@graph' array (any size, including 1)
                 // - Top-level JSON array (list) of items
                 $isTopLevelList = is_array($data) && array_is_list($data);
-                $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || $isTopLevelList;
+                $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || (isset($data['itemListElement']) && is_array($data['itemListElement'])) || $isTopLevelList;
                 
                 // Special case for ODIS sitegraphs that might be wrapped in @graph but have other keys
                 // or where @graph is not at the top level, or it's a list with different keys.
@@ -769,7 +769,13 @@ class OdisCrawler
                     $isGraph = true;
                     $graph = $data;
                 } elseif ($isGraph) {
-                    $graph = $isTopLevelList ? $data : $data['@graph'];
+                    if ($isTopLevelList) {
+                        $graph = $data;
+                    } elseif (isset($data['@graph']) && is_array($data['@graph'])) {
+                        $graph = $data['@graph'];
+                    } elseif (isset($data['itemListElement']) && is_array($data['itemListElement'])) {
+                        $graph = $data['itemListElement'];
+                    }
                 }
 
                 if ($isGraph) {
