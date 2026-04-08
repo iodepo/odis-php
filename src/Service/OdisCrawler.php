@@ -791,6 +791,13 @@ class OdisCrawler
                             continue;
                         }
 
+                        // Handle ListItem: extract the actual 'item' content if present
+                        if (isset($item['@type']) && ($item['@type'] === 'ListItem' || $item['@type'] === 'schema:ListItem')) {
+                            if (isset($item['item']) && is_array($item['item'])) {
+                                $item = $item['item'];
+                            }
+                        }
+
                         $itemId = $item['@id'] ?? $item['id'] ?? md5($url . $index);
                         $params = [
                             'index' => 'odis_metadata',
