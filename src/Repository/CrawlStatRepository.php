@@ -142,17 +142,22 @@ class CrawlStatRepository extends ServiceEntityRepository
     {
         $stats = $this->createQueryBuilder('s')
             ->select('s.processedEntries')
-            ->where('s.type = :full OR s.type = :master')
+            ->where('s.type = :full OR s.type = :master OR s.type = :targeted')
             ->setParameter('full', 'full')
             ->setParameter('master', 'parallel_master')
+            ->setParameter('targeted', 'targeted')
             ->getQuery()
             ->getResult();
 
         $allEntries = [];
+        $seenIds = [];
         foreach ($stats as $stat) {
             if (isset($stat['processedEntries']) && is_array($stat['processedEntries'])) {
                 foreach ($stat['processedEntries'] as $entry) {
-                    $allEntries[] = $entry;
+                    if (isset($entry['id']) && !in_array($entry['id'], $seenIds)) {
+                        $allEntries[] = $entry;
+                        $seenIds[] = $entry['id'];
+                    }
                 }
             }
         }
