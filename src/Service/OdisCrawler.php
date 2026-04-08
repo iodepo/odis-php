@@ -758,9 +758,14 @@ class OdisCrawler
                 $isTopLevelList = is_array($data) && array_is_list($data);
                 $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || $isTopLevelList;
                 
-                // Special case for ODIS sitegraphs that might not be detected as list/graph
-                // but are known to contain many items (like obps.json)
-                if (!$isGraph && str_ends_with($url, '.json') && count($data) > 20 && !isset($data['@type'])) {
+                // Special case for ODIS sitegraphs that might be wrapped in @graph but have other keys
+                // or where @graph is not at the top level, or it's a list with different keys.
+                if (!$isGraph && isset($data['graph']) && is_array($data['graph'])) {
+                    $isGraph = true;
+                    $graph = $data['graph'];
+                } elseif (!$isGraph && str_ends_with($url, '.json') && count($data) > 0 && !isset($data['@type'])) {
+                    // If it's a large associative array with many numeric keys or just many keys
+                    // and no @type, it's likely a collection.
                     $isGraph = true;
                     $graph = $data;
                 } elseif ($isGraph) {
@@ -774,6 +779,12 @@ class OdisCrawler
                         if ($this->limit > 0 && $this->validJsonLdsCount >= $this->limit) {
                             break;
                         }
+                        
+                        // If item is not an array, skip it
+                        if (!is_array($item)) {
+                            continue;
+                        }
+
                         $itemId = $item['@id'] ?? $item['id'] ?? md5($url . $index);
                         $params = [
                             'index' => 'odis_metadata',
