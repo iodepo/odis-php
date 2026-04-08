@@ -17,7 +17,14 @@ class DashboardApiController extends AbstractController
         $inProgress = $repository->findBy(['status' => 'in_progress'], ['id' => 'DESC'], 1);
         $latestStat = !empty($inProgress) ? $inProgress[0] : $repository->findLatest();
 
-        $history = $repository->findBy([], ['id' => 'DESC'], 100);
+        // We want to show main crawl sessions (Full or Parallel Master) in the history table.
+        // Parallel targeted sub-processes are excluded from the main history table 
+        // as they are part of a larger master session.
+        $history = $repository->findBy(
+            ['type' => ['full', 'parallel_master']], 
+            ['id' => 'DESC'], 
+            100
+        );
 
         $totalValid = 0;
         $esError = null;
