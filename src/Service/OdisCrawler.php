@@ -755,7 +755,7 @@ class OdisCrawler
                 // Treat as a sitegraph in the following cases:
                 // - JSON-LD object with an '@graph' array (any size, including 1)
                 // - Top-level JSON array (list) of items
-                $isTopLevelList = is_array($data) && array_keys($data) === range(0, count($data) - 1);
+                $isTopLevelList = is_array($data) && array_is_list($data);
                 if ((isset($data['@graph']) && is_array($data['@graph'])) || $isTopLevelList) {
                     $graph = $isTopLevelList ? $data : $data['@graph'];
                     $this->log("Graph detected at $url (" . count($graph) . " items). Indexing individually.", 'info');
