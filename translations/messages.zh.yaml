@@ -1,7 +1,7 @@
 nav.home: "主页"
 nav.search: "搜索"
 nav.dashboard: "仪表板"
-footer.copyright: "ODIS 元数据项目。由 Symfony 和 Elasticsearch 提供支持。"
+footer.copyright: "UNESCO IOD/IODE ODIS"
 
 home.title: "ODIS 元数据爬虫与搜索"
 home.lead: "此应用程序旨在查找、索引和搜索 ODIS（海洋数据和信息系统）JSON-LD 元数据。"

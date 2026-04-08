@@ -1,7 +1,7 @@
 nav.home: "Home"
 nav.search: "Search"
 nav.dashboard: "Dashboard"
-footer.copyright: "ODIS Metadata Project. Powered by Symfony and Elasticsearch."
+footer.copyright: "UNESCO IOD/IODE ODIS"
 
 home.title: "ODIS Metadata Crawler & Search"
 home.lead: "This application is designed to find, index, and search ODIS (Ocean Data and Information System) JSON-LD metadata."

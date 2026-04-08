@@ -1,7 +1,7 @@
 nav.home: "Inicio"
 nav.search: "Buscar"
 nav.dashboard: "Panel de control"
-footer.copyright: "Proyecto de metadatos ODIS. Impulsado por Symfony y Elasticsearch."
+footer.copyright: "UNESCO IOD/IODE ODIS"
 
 home.title: "Rastreador y buscador de metadatos ODIS"
 home.lead: "Esta aplicación está diseñada para encontrar, indexar y buscar metadatos JSON-LD de ODIS (Sistema de Información y Datos Oceánicos)."
