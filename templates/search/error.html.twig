@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Search Error - ODIS Metadata Crawler{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+    <div class="alert alert-danger shadow-sm">
+        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Search Engine Unavailable</h4>
+        <p>{{ error }}</p>
+        <hr>
+        <p class="mb-0"><strong>Recommended Solution:</strong> {{ solution }}</p>
+    </div>
+
+    <div class="card mt-4 border-info">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Troubleshooting Tips</h5>
+        </div>
+        <div class="card-body">
+            <ul>
+                <li>Check your <code>.env.local</code> file for <code>ELASTICSEARCH_URL</code>, <code>ELASTICSEARCH_USER</code>, and <code>ELASTICSEARCH_PASSWORD</code>.</li>
+                <li>Ensure the Elasticsearch service is running on the target server.</li>
+                <li>Check for firewall rules blocking connection to port 9200 (or the port you configured).</li>
+                <li>If you recently changed the mapping, you might need to run the crawler with <code>--clear-index</code> to reset the search index.</li>
+            </ul>
+            <a href="{{ path('app_search') }}" class="btn btn-outline-primary mt-3">Try Again</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
