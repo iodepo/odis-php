@@ -874,15 +874,34 @@ class OdisCrawler
                             $itemId = json_encode($itemId);
                         }
                         $itemId = $itemId ?: md5($url . $index);
+
+                        // Extract root-level fields from wrapped objects before indexing
+                        $rootFields = [
+                            'name', 'schema:name', 'description', 'schema:description', 
+                            '@type', 'schema:@type', 'keywords', 'schema:keywords',
+                            'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                        ];
+                        $body = [
+                            'url' => $url,
+                            'data' => $item,
+                            'datasource_id' => $this->currentDatasourceId,
+                            'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
+                        ];
+
+                        foreach ($rootFields as $field) {
+                            if (isset($item[$field])) {
+                                if (is_array($item[$field]) && isset($item[$field]['value'])) {
+                                    $body[$field] = $item[$field]['value'];
+                                } else {
+                                    $body[$field] = $item[$field];
+                                }
+                            }
+                        }
+
                         $params = [
                             'index' => 'odis_metadata',
                             'id'    => md5($itemId),
-                            'body'  => [
-                                'url' => $url,
-                                'data' => $item,
-                                'datasource_id' => $this->currentDatasourceId,
-                                'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
-                            ]
+                            'body'  => $body
                         ];
                         try {
                             $this->esClient->index($params);
@@ -899,15 +918,32 @@ class OdisCrawler
                         'id'    => md5($url),
                         'body'  => [
                             'url' => $url,
-                            'data' => $data,
                             'datasource_id' => $this->currentDatasourceId,
                             'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
                         ]
                     ];
-                    unset($data); // Free memory before indexing
-                    
+
                     // Normalize data for safe indexing
-                    $params['body']['data'] = $this->normalizeDataForSafeIndexing($params['body']['data']);
+                    $normalizedData = $this->normalizeDataForSafeIndexing($data);
+                    $params['body']['data'] = $normalizedData;
+
+                    // Extract root-level fields from wrapped objects before indexing
+                    $rootFields = [
+                        'name', 'schema:name', 'description', 'schema:description', 
+                        '@type', 'schema:@type', 'keywords', 'schema:keywords',
+                        'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                    ];
+                    foreach ($rootFields as $field) {
+                        if (isset($normalizedData[$field])) {
+                            if (is_array($normalizedData[$field]) && isset($normalizedData[$field]['value'])) {
+                                $params['body'][$field] = $normalizedData[$field]['value'];
+                            } else {
+                                $params['body'][$field] = $normalizedData[$field];
+                            }
+                        }
+                    }
+                    unset($data); // Free memory before indexing
+                    unset($normalizedData);
                     
                     try {
                         $this->esClient->index($params);

@@ -87,7 +87,11 @@
                                             <div class="custom-control custom-checkbox mb-3">
                                                 <input type="checkbox" name="types[]" value="{{ bucket.key }}" class="custom-control-input" id="type-dropdown-{{ loop.index }}" {{ isChecked ? 'checked' }}>
                                                 <label class="custom-control-label small d-flex justify-content-between align-items-center w-100 cursor-pointer" for="type-dropdown-{{ loop.index }}">
-                                                    <span class="text-truncate pr-2" style="max-width: 180px;">{{ bucket.key is iterable ? bucket.key|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : bucket.key|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}</span>
+                                                    <span class="text-truncate pr-2" style="max-width: 180px;">
+                                                        {% set typeKey = bucket.key is iterable ? bucket.key|join(', ') : bucket.key %}
+                                                        {% set typeCleaned = typeKey|replace({'{value=': '', '}': '', 'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) %}
+                                                        {{ typeCleaned }}
+                                                    </span>
                                                     <span class="badge badge-pill badge-light border text-muted">{{ bucket.doc_count }}</span>
                                                 </label>
                                             </div>
@@ -191,8 +195,10 @@
                                                         <input type="checkbox" name="types[]" value="{{ bucket.key }}" class="custom-control-input" id="type-{{ loop.index }}" {{ isChecked ? 'checked' }}>
                                                         <label class="custom-control-label small d-flex justify-content-between align-items-center w-100 cursor-pointer" for="type-{{ loop.index }}">
                                                             <span class="text-truncate mr-2" title="{{ bucket.key is iterable ? bucket.key|join(', ') : bucket.key }}">
-                                                                {{ bucket.key is iterable ? bucket.key|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : bucket.key|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
-                                                            </span>
+    {% set typeKey = bucket.key is iterable ? bucket.key|join(', ') : bucket.key %}
+    {% set typeCleaned = typeKey|replace({'{value=': '', '}': '', 'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) %}
+    {{ typeCleaned }}
+</span>
                                                             <span class="badge badge-pill {{ isChecked ? 'badge-primary' : 'badge-secondary' }}">{{ bucket.doc_count }}</span>
                                                         </label>
                                                     </div>
@@ -299,10 +305,12 @@
                                     <h6 class="card-subtitle mb-2 text-muted small">
                                         <i class="fa fa-link mr-1"></i>{{ primaryLink != '#' ? primaryLink : 'No URL available'|trans }}
                                         {% if attribute(source, '@type') is defined %}
-                                            <span class="ml-2 badge badge-pill badge-light border">
-                                                {{ attribute(source, '@type') is iterable ? attribute(source, '@type')|join(', ')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) : attribute(source, '@type')|replace({'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
-                                            </span>
-                                        {% endif %}
+    <span class="ml-2 badge badge-pill badge-light border">
+        {% set typeRaw = attribute(source, '@type') %}
+        {% set typeStr = typeRaw is iterable ? typeRaw|join(', ') : typeRaw %}
+        {{ typeStr|replace({'{value=': '', '}': '', 'http://schema.org/': '', 'https://schema.org/': '', 'schema:': ''}) }}
+    </span>
+{% endif %}
                                     </h6>
 
                                     <div class="card-text">
