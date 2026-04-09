@@ -7,7 +7,6 @@
 var/
 
 # UnitTest
-tests/
 .phpunit.cache/
 .phpunit.cache/test-results
 .phpunit.cache/*
