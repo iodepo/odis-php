@@ -22,3 +22,4 @@ vendor/
 
 reed_results.json
 .phpunit.cache/
+.phpunit.cache/*
