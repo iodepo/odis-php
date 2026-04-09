@@ -21,3 +21,4 @@ vendor/
 .settings
 
 reed_results.json
+.phpunit.cache/
