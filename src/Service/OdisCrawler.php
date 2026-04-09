@@ -271,6 +271,17 @@ class OdisCrawler
     public function getIndexMapping(): array
     {
         return [
+            'dynamic_templates' => [
+                [
+                    'data_fields' => [
+                        'path_match' => 'data.*',
+                        'mapping' => [ 
+                            'type' => 'object',
+                            'enabled' => false
+                        ]
+                    ]
+                ]
+            ],
             'properties' => [
                 'name' => [
                     'type' => 'text',
@@ -356,6 +367,10 @@ class OdisCrawler
                 'schema:contactPoint' => ['type' => 'flattened'],
                 'inLanguage' => ['type' => 'flattened'],
                 'schema:inLanguage' => ['type' => 'flattened'],
+                'data' => [
+                    'type' => 'object',
+                    'dynamic' => true
+                ],
                 '@context' => ['type' => 'flattened']
             ]
         ];
@@ -598,6 +613,35 @@ class OdisCrawler
         }
     }
 
+    private function normalizeDataForSafeIndexing(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                // Check if it's an associative array (object in JSON)
+                $isAssoc = false;
+                if (!empty($value)) {
+                    $keys = array_keys($value);
+                    $isAssoc = array_keys($keys) !== $keys;
+                }
+
+                if ($isAssoc) {
+                    // It's an object, we recurse into it
+                    $data[$key] = $this->normalizeDataForSafeIndexing($value);
+                } else {
+                    // It's an indexed array. 
+                }
+            } else {
+                // Scalar value (string, number, bool, null).
+                // Since data.* is now mapped as 'type: object, enabled: false' via dynamic template,
+                // Elasticsearch EXPECTS an object for EVERY field under data.
+                // If we send a scalar, it will fail.
+                // Solution: Wrap scalars in a simple object.
+                $data[$key] = ['value' => $value];
+            }
+        }
+        return $data;
+    }
+
     private function normalizePolymorphicField($value): ?array
     {
         if ($value === null) {
@@ -813,6 +857,9 @@ class OdisCrawler
                             continue;
                         }
 
+                        // Normalize data for safe indexing
+                        $item = $this->normalizeDataForSafeIndexing($item);
+
                         // Handle ListItem: extract the actual 'item' content if present
                         if (isset($item['@type']) && ($item['@type'] === 'ListItem' || $item['@type'] === 'schema:ListItem')) {
                             if (isset($item['item']) && is_array($item['item'])) {
@@ -820,7 +867,11 @@ class OdisCrawler
                             }
                         }
 
-                        $itemId = $item['@id'] ?? $item['id'] ?? md5($url . $index);
+                        $itemId = $item['@id'] ?? $item['id'] ?? null;
+                        if (is_array($itemId)) {
+                            $itemId = json_encode($itemId);
+                        }
+                        $itemId = $itemId ?: md5($url . $index);
                         $params = [
                             'index' => 'odis_metadata',
                             'id'    => md5($itemId),
@@ -852,6 +903,10 @@ class OdisCrawler
                         ]
                     ];
                     unset($data); // Free memory before indexing
+                    
+                    // Normalize data for safe indexing
+                    $params['body']['data'] = $this->normalizeDataForSafeIndexing($params['body']['data']);
+                    
                     try {
                         $this->esClient->index($params);
                         $this->validJsonLdsCount++;
