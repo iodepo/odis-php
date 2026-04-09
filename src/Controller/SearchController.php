@@ -100,10 +100,10 @@ class SearchController extends AbstractController
                         'script' => [
                             'source' => "
                                 if (doc.containsKey('@type.keyword') && doc['@type.keyword'].size() > 0) {
-                                    for (type in doc['@type.keyword']) {
-                                        if (type != null && type != '') {
+                                    for (t in doc['@type.keyword']) {
+                                        if (t != null && t != '') {
                                             // Normalize: strip schema.org prefixes, wrappers, and lowercase
-                                            type = type.replace('https://schema.org/', '')
+                                            def type = t.replace('https://schema.org/', '')
                                                        .replace('http://schema.org/', '')
                                                        .replace('schema:', '');
                                             if (type.startsWith('{value=') && type.endsWith('}')) {
@@ -113,9 +113,9 @@ class SearchController extends AbstractController
                                         }
                                     }
                                 } else if (doc.containsKey('schema:additionalType.keyword') && doc['schema:additionalType.keyword'].size() > 0) {
-                                    for (type in doc['schema:additionalType.keyword']) {
-                                        if (type != null && type != '') {
-                                            type = type.replace('https://schema.org/', '')
+                                    for (t in doc['schema:additionalType.keyword']) {
+                                        if (t != null && t != '') {
+                                            def type = t.replace('https://schema.org/', '')
                                                        .replace('http://schema.org/', '')
                                                        .replace('schema:', '');
                                             if (type.startsWith('{value=') && type.endsWith('}')) {
