@@ -14,7 +14,15 @@ class DashboardController extends AbstractController
     public function index(CrawlStatRepository $repository, \Elastic\Elasticsearch\Client $esClient): Response
     {
         $latestStat = $repository->findLatest();
-        $history = $repository->findBy([], ['id' => 'DESC'], 100);
+        
+        // We want to show main crawl sessions (Full or Parallel Master) or targeted crawls in the history table.
+        // We only exclude 'targeted' if they are very frequent or if we want a cleaner look,
+        // but typically a user wants to see their last 100 runs regardless of type.
+        $history = $repository->findBy(
+            ['type' => ['full', 'parallel_master', 'targeted']],
+            ['id' => 'DESC'],
+            100
+        );
 
         // Fetch cumulative counts from Elasticsearch and DB
         $totalValid = 0;
