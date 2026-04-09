@@ -99,21 +99,31 @@ class SearchController extends AbstractController
                         'type' => 'keyword',
                         'script' => [
                             'source' => "
-                                String type = '';
                                 if (doc.containsKey('@type.keyword') && doc['@type.keyword'].size() > 0) {
-                                    type = doc['@type.keyword'].value;
-                                } else if (doc.containsKey('schema:additionalType.keyword') && doc['schema:additionalType.keyword'].size() > 0) {
-                                    type = doc['schema:additionalType.keyword'].value;
-                                }
-                                if (type != null && type != '') {
-                                    // Normalize: strip schema.org prefixes, wrappers, and lowercase
-                                    type = type.replace('https://schema.org/', '')
-                                               .replace('http://schema.org/', '')
-                                               .replace('schema:', '');
-                                    if (type.startsWith('{value=') && type.endsWith('}')) {
-                                        type = type.substring(7, type.length() - 1);
+                                    for (type in doc['@type.keyword']) {
+                                        if (type != null && type != '') {
+                                            // Normalize: strip schema.org prefixes, wrappers, and lowercase
+                                            type = type.replace('https://schema.org/', '')
+                                                       .replace('http://schema.org/', '')
+                                                       .replace('schema:', '');
+                                            if (type.startsWith('{value=') && type.endsWith('}')) {
+                                                type = type.substring(7, type.length() - 1);
+                                            }
+                                            emit(type.toLowerCase());
+                                        }
                                     }
-                                    emit(type.toLowerCase());
+                                } else if (doc.containsKey('schema:additionalType.keyword') && doc['schema:additionalType.keyword'].size() > 0) {
+                                    for (type in doc['schema:additionalType.keyword']) {
+                                        if (type != null && type != '') {
+                                            type = type.replace('https://schema.org/', '')
+                                                       .replace('http://schema.org/', '')
+                                                       .replace('schema:', '');
+                                            if (type.startsWith('{value=') && type.endsWith('}')) {
+                                                type = type.substring(7, type.length() - 1);
+                                            }
+                                            emit(type.toLowerCase());
+                                        }
+                                    }
                                 }
                             "
                         ]

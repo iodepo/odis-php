@@ -635,10 +635,10 @@ class OdisCrawlerTest extends TestCase
         $this->assertCount(1, $esClientMock->indexCalls);
         $body = $esClientMock->indexCalls[0]['body'];
         
-        // This is what we expect to fix. Currently it's likely '["Event","BoatTrip"]'
-        $this->assertNotEquals('["Event","BoatTrip"]', $body['@type']);
-        // We'll aim for something like "Event, BoatTrip"
-        $this->assertEquals('Event, BoatTrip', $body['@type']);
+        // We expect an array for multi-type now
+        $this->assertIsArray($body['@type']);
+        $this->assertContains('Event', $body['@type']);
+        $this->assertContains('BoatTrip', $body['@type']);
     }
 
     public function testFetchAndIndexDefinedTermKeywords()

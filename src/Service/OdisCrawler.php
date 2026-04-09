@@ -948,12 +948,22 @@ class OdisCrawler
                                     // If it's still an array after trying to extract URL, stringify it
                                     if (is_array($val)) {
                                         if (array_is_list($val)) {
-                                            $val = implode(', ', array_map(function($v) {
-                                                if (is_array($v) && isset($v['name'])) {
-                                                    return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
-                                                }
-                                                return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
-                                            }, $val));
+                                            if ($field === '@type' || $field === 'schema:@type') {
+                                                // Keep as array for @type to allow multiple types in Elasticsearch
+                                                $val = array_map(function($v) {
+                                                    if (is_array($v) && isset($v['name'])) {
+                                                        return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                                    }
+                                                    return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                                }, $val);
+                                            } else {
+                                                $val = implode(', ', array_map(function($v) {
+                                                    if (is_array($v) && isset($v['name'])) {
+                                                        return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                                    }
+                                                    return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                                }, $val));
+                                            }
                                         } else {
                                             $val = $val['name'] ?? $val['value'] ?? json_encode($val);
                                             if (is_array($val)) {
@@ -1071,12 +1081,22 @@ class OdisCrawler
                                 // If it's still an array after trying to extract URL, stringify it
                                 if (is_array($val)) {
                                     if (array_is_list($val)) {
-                                        $val = implode(', ', array_map(function($v) {
-                                            if (is_array($v) && isset($v['name'])) {
-                                                return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
-                                            }
-                                            return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
-                                        }, $val));
+                                        if ($field === '@type' || $field === 'schema:@type') {
+                                            // Keep as array for @type to allow multiple types in Elasticsearch
+                                            $val = array_map(function($v) {
+                                                if (is_array($v) && isset($v['name'])) {
+                                                    return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                                }
+                                                return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                            }, $val);
+                                        } else {
+                                            $val = implode(', ', array_map(function($v) {
+                                                if (is_array($v) && isset($v['name'])) {
+                                                    return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                                }
+                                                return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                            }, $val));
+                                        }
                                     } else {
                                         $val = $val['name'] ?? $val['value'] ?? json_encode($val);
                                         if (is_array($val)) {
