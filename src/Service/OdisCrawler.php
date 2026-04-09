@@ -37,6 +37,7 @@ class OdisCrawler
     private string $currentDatasourceId = '';
     private string $commandLine = '';
     private RobotsTxtManager $robotsManager;
+    private array $visitedSitemaps = [];
 
     public function __construct(Client $esClient, LoggerInterface $logger, EntityManagerInterface $entityManager, RobotsTxtManager $robotsManager)
     {
@@ -92,6 +93,7 @@ class OdisCrawler
     public function run(?array $specificIds = null, ?array $skipIds = null): void
     {
         gc_collect_cycles(); // Cleanup memory before start
+        $this->visitedSitemaps = [];
         $this->nodesFoundCount = 0;
         $this->pagesCrawledCount = 0;
         $this->validJsonLdsCount = 0;
@@ -157,6 +159,12 @@ class OdisCrawler
             if ($specificIds === null) {
                 $this->nodesFoundCount = count($dsIds);
             }
+        }
+
+        if ($this->limit > 0 && empty($specificIds)) {
+            $this->log("Applying limit of {$this->limit} datasources");
+            $dsIds = array_slice($dsIds, 0, $this->limit);
+            $this->nodesFoundCount = count($dsIds);
         }
 
         foreach ($dsIds as $id) {
@@ -244,6 +252,10 @@ class OdisCrawler
             if ($this->esClient->indices()->exists($params)->asBool()) {
                 $this->esClient->indices()->delete($params);
                 $this->log("Deleted Elasticsearch index: {$this->esIndex}");
+                
+                // Wait a bit for the index to be fully deleted before allowing creation
+                // This helps avoid resource_already_exists_exception on fast sequential calls
+                usleep(500000); // 500ms
             }
         } catch (NoNodeAvailableException $e) {
             $message = "Elasticsearch connection failed: " . $e->getMessage() . ". Solution: Please check your ELASTICSEARCH_URL in .env.local and ensure the Elasticsearch service is running.";
@@ -485,6 +497,12 @@ class OdisCrawler
 
     private function processSitemap(string $sitemapUrl): void
     {
+        if (in_array($sitemapUrl, $this->visitedSitemaps)) {
+            $this->log("Sitemap already visited: $sitemapUrl. Skipping to prevent infinite loop.", 'warning');
+            return;
+        }
+        $this->visitedSitemaps[] = $sitemapUrl;
+
         if (!$this->robotsManager->isAllowed($sitemapUrl)) {
             $this->log("Sitemap URL $sitemapUrl is disallowed by robots.txt", 'warning');
             return;
@@ -537,6 +555,9 @@ class OdisCrawler
             if ($sitemap->getName() === 'sitemapindex') {
                 $locs = $sitemap->xpath("//{$nsPrefix}loc");
                 foreach ($locs as $loc) {
+                    if ($this->limit > 0 && $this->processedInCurrentDatasource >= $this->limit) {
+                        break;
+                    }
                     $this->processSitemap((string) $loc);
                 }
                 return;
