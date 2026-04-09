@@ -823,28 +823,33 @@ class OdisCrawler
                 // Treat as a sitegraph in the following cases:
                 // - JSON-LD object with an '@graph' array (any size, including 1)
                 // - Top-level JSON array (list) of items
-                $isTopLevelList = is_array($data) && array_is_list($data);
-                $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || (isset($data['itemListElement']) && is_array($data['itemListElement'])) || $isTopLevelList;
-                
-                // Special case for ODIS sitegraphs that might be wrapped in @graph but have other keys
-                // or where @graph is not at the top level, or it's a list with different keys.
-                if (!$isGraph && isset($data['graph']) && is_array($data['graph'])) {
-                    $isGraph = true;
-                    $graph = $data['graph'];
-                } elseif (!$isGraph && str_ends_with($url, '.json') && count($data) > 0 && !isset($data['@type'])) {
-                    // If it's a large associative array with many numeric keys or just many keys
-                    // and no @type, it's likely a collection.
-                    $isGraph = true;
+            $isTopLevelList = is_array($data) && array_is_list($data);
+            $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || 
+                       (isset($data['itemListElement']) && is_array($data['itemListElement'])) || 
+                       (isset($data['dataset']) && is_array($data['dataset'])) ||
+                       $isTopLevelList;
+            
+            // Special case for ODIS sitegraphs that might be wrapped in @graph but have other keys
+            // or where @graph is not at the top level, or it's a list with different keys.
+            if (!$isGraph && isset($data['graph']) && is_array($data['graph'])) {
+                $isGraph = true;
+                $graph = $data['graph'];
+            } elseif (!$isGraph && str_ends_with($url, '.json') && count($data) > 0 && !isset($data['@type'])) {
+                // If it's a large associative array with many numeric keys or just many keys
+                // and no @type, it's likely a collection.
+                $isGraph = true;
+                $graph = $data;
+            } elseif ($isGraph) {
+                if ($isTopLevelList) {
                     $graph = $data;
-                } elseif ($isGraph) {
-                    if ($isTopLevelList) {
-                        $graph = $data;
-                    } elseif (isset($data['@graph']) && is_array($data['@graph'])) {
-                        $graph = $data['@graph'];
-                    } elseif (isset($data['itemListElement']) && is_array($data['itemListElement'])) {
-                        $graph = $data['itemListElement'];
-                    }
+                } elseif (isset($data['@graph']) && is_array($data['@graph'])) {
+                    $graph = $data['@graph'];
+                } elseif (isset($data['itemListElement']) && is_array($data['itemListElement'])) {
+                    $graph = $data['itemListElement'];
+                } elseif (isset($data['dataset']) && is_array($data['dataset'])) {
+                    $graph = $data['dataset'];
                 }
+            }
 
                 if ($isGraph) {
                     $this->log("Graph detected at $url (" . count($graph) . " items). Indexing individually.", 'info');
@@ -864,7 +869,8 @@ class OdisCrawler
 
                         // Extract root-level fields from wrapped objects before indexing
                         $rootFields = [
-                            'name', 'schema:name', 'description', 'schema:description', 
+                            'name', 'schema:name', 'title', 'schema:title',
+                            'description', 'schema:description', 
                             '@type', 'schema:@type', 'keywords', 'schema:keywords',
                             'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
                         ];
@@ -917,6 +923,12 @@ class OdisCrawler
                                         return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
                                     }, $val));
                                 }
+                            
+                                // If title was found, map it to name for consistent indexing
+                                if ($field === 'title' || $field === 'schema:title') {
+                                    $body['name'] = $val;
+                                }
+                            
                                 $body[$field] = $val;
                             }
                         }
@@ -979,7 +991,8 @@ class OdisCrawler
 
                     // Extract root-level fields from wrapped objects before indexing
                     $rootFields = [
-                        'name', 'schema:name', 'description', 'schema:description', 
+                        'name', 'schema:name', 'title', 'schema:title',
+                        'description', 'schema:description', 
                         '@type', 'schema:@type', 'keywords', 'schema:keywords',
                         'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
                     ];
@@ -996,6 +1009,12 @@ class OdisCrawler
                                     return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
                                 }, $val));
                             }
+                            
+                            // If title was found, map it to name for consistent indexing
+                            if ($field === 'title' || $field === 'schema:title') {
+                                $params['body']['name'] = $val;
+                            }
+                            
                             $params['body'][$field] = $val;
                         }
                     }
