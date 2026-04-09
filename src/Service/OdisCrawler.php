@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientInterface;
 use Elastic\Transport\Exception\NoNodeAvailableException;
 use GuzzleHttp\Client as GuzzleClient;
 use Symfony\Component\DomCrawler\Crawler;
@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class OdisCrawler
 {
     private GuzzleClient $httpClient;
-    private Client $esClient;
+    private ClientInterface $esClient;
     private string $esIndex = 'odis_metadata';
     private string $recordsApiUrl = 'https://catalogue.odis.org/odis-arch-records';
     private string $viewBaseUrl = 'https://catalogue.odis.org/view/';
@@ -39,13 +39,13 @@ class OdisCrawler
     private RobotsTxtManager $robotsManager;
     private array $visitedSitemaps = [];
 
-    public function __construct(Client $esClient, LoggerInterface $logger, EntityManagerInterface $entityManager, RobotsTxtManager $robotsManager)
+    public function __construct(ClientInterface $esClient, LoggerInterface $logger, EntityManagerInterface $entityManager, RobotsTxtManager $robotsManager, ?GuzzleClient $httpClient = null)
     {
         $this->esClient = $esClient;
         $this->logger = $logger;
         $this->entityManager = $entityManager;
         $this->robotsManager = $robotsManager;
-        $this->httpClient = new GuzzleClient([
+        $this->httpClient = $httpClient ?: new GuzzleClient([
             'timeout'  => 15.0,
             'verify' => false,
             'headers' => [
