@@ -197,7 +197,7 @@
                                             <ul class="mb-0 small text-danger">
                                 {% for error in stat.errorDetails %}
                                                     <li>
-                                                        <i class="fa fa-exclamation-triangle mr-1"></i>
+                                                        <i class="fas fa-exclamation-triangle mr-1"></i>
                                                         {% if error is iterable %}
                                                             {{ error.message|default('Unknown error') }}
                                                         {% else %}
@@ -237,7 +237,6 @@
                                             <span class="badge badge-secondary mr-1">{{ entry.id }}</span> {{ entry.name }}
                                         </h6>
                                         <a href="https://catalogue.odis.org/view/{{ entry.id }}" target="_blank" class="btn btn-sm btn-link p-0 text-primary" title="View in ODISCat">
-                                            <i class="fa fa-external-link"></i>
                                         </a>
                                     </div>
                                     <div class="row no-gutters text-center border-top pt-2">
@@ -260,7 +259,7 @@
                                         <ul class="list-unstyled mb-0 small text-danger">
                                             {% for error in entry.errors %}
                                             <li class="text-truncate" title="{% if error is iterable %}{{ error.message|default('') }}{% else %}{{ error }}{% endif %}">
-                                                <i class="fa fa-exclamation-triangle mr-1"></i>
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>
                                                 {% if error is iterable %}
                                                     {{ error.message|default('Unknown error') }}
                                                 {% else %}
@@ -330,7 +329,7 @@
                                 processedHtml += '                <span class="badge badge-secondary mr-1">' + entry.id + '</span> ' + entry.name;
                                 processedHtml += '            </h6>';
                                 processedHtml += '            <a href="https://catalogue.odis.org/view/' + entry.id + '" target="_blank" class="btn btn-sm btn-link p-0 text-primary" title="View in ODISCat">';
-                                processedHtml += '                <i class="fa fa-external-link"></i>';
+                                processedHtml += '                <i class="fas fa-external-link-alt"></i>';
                                 processedHtml += '            </a>';
                                 processedHtml += '        </div>';
                                 processedHtml += '        <div class="row no-gutters text-center border-top pt-2">';
