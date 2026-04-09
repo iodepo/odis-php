@@ -361,14 +361,14 @@ class OdisCrawler
                 'schema:subEvent' => ['type' => 'flattened'],
                 'sdPublisher' => ['type' => 'flattened'],
                 'schema:sdPublisher' => ['type' => 'flattened'],
-                'datePublished' => ['type' => 'flattened'],
-                'schema:datePublished' => ['type' => 'flattened'],
+                'datePublished' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:datePublished' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
                 'educationalCredentialAwarded' => ['type' => 'flattened'],
                 'schema:educationalCredentialAwarded' => ['type' => 'flattened'],
                 'contactPoint' => ['type' => 'flattened'],
                 'schema:contactPoint' => ['type' => 'flattened'],
-                'inLanguage' => ['type' => 'flattened'],
-                'schema:inLanguage' => ['type' => 'flattened'],
+                'inLanguage' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:inLanguage' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
                 'data' => [
                     'type' => 'object',
                     'dynamic' => true
@@ -862,11 +862,33 @@ class OdisCrawler
                         // Normalize data for safe indexing
                         $item = $this->normalizeDataForSafeIndexing($item);
 
+                        // Extract root-level fields from wrapped objects before indexing
+                        $rootFields = [
+                            'name', 'schema:name', 'description', 'schema:description', 
+                            '@type', 'schema:@type', 'keywords', 'schema:keywords',
+                            'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                        ];
+
+                        $type = $item['@type']['value'] ?? $item['@type'] ?? '';
+
+                        // Skip BreadcrumbList as it's not a valid ODIS type for indexing
+                        if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                            $this->log("Skipping BreadcrumbList at $url", 'debug');
+                            continue;
+                        }
+
                         // Handle ListItem: extract the actual 'item' content if present
-                        if (isset($item['@type']) && ($item['@type'] === 'ListItem' || $item['@type'] === 'schema:ListItem')) {
+                        if ($type === 'ListItem' || $type === 'schema:ListItem') {
                             if (isset($item['item']) && is_array($item['item'])) {
                                 $item = $item['item'];
+                                $type = $item['@type']['value'] ?? $item['@type'] ?? '';
                             }
+                        }
+
+                        // Re-check type after possible ListItem unwrap
+                        if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                            $this->log("Skipping BreadcrumbList (unwrapped) at $url", 'debug');
+                            continue;
                         }
 
                         $itemId = $item['@id'] ?? $item['id'] ?? null;
@@ -874,28 +896,6 @@ class OdisCrawler
                             $itemId = json_encode($itemId);
                         }
                         $itemId = $itemId ?: md5($url . $index);
-
-                    // Extract root-level fields from wrapped objects before indexing
-                    $rootFields = [
-                        'name', 'schema:name', 'description', 'schema:description', 
-                        '@type', 'schema:@type', 'keywords', 'schema:keywords',
-                        'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
-                    ];
-
-                    // Special case for ItemList and ListItem: unwrap if they contain an 'item'
-                    // This happens for sources like Aquadocs (ID 283)
-                    $type = $item['@type']['value'] ?? $item['@type'] ?? '';
-                    if (($type === 'ListItem' || $type === 'schema:ListItem') && isset($item['item'])) {
-                        // The real item is nested inside 'item'
-                        // We merge fields from the ListItem (like position) if they don't exist in the inner item
-                        $innerItem = $item['item'];
-                        foreach ($item as $k => $v) {
-                            if ($k !== 'item' && !isset($innerItem[$k])) {
-                                $innerItem[$k] = $v;
-                            }
-                        }
-                        $item = $innerItem;
-                    }
 
                     $body = [
                         'url' => $url,
@@ -949,8 +949,15 @@ class OdisCrawler
                     // Normalize data for safe indexing
                     $normalizedData = $this->normalizeDataForSafeIndexing($data);
                     
-                    // Special case for ItemList and ListItem: unwrap if they contain an 'item'
                     $type = $normalizedData['@type']['value'] ?? $normalizedData['@type'] ?? '';
+
+                    // Skip BreadcrumbList
+                    if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                        $this->log("Skipping BreadcrumbList at $url", 'debug');
+                        return;
+                    }
+
+                    // Special case for ItemList and ListItem: unwrap if they contain an 'item'
                     if (($type === 'ListItem' || $type === 'schema:ListItem') && isset($normalizedData['item'])) {
                         $innerItem = $normalizedData['item'];
                         foreach ($normalizedData as $k => $v) {
@@ -959,6 +966,13 @@ class OdisCrawler
                             }
                         }
                         $normalizedData = $innerItem;
+                        $type = $normalizedData['@type']['value'] ?? $normalizedData['@type'] ?? '';
+                    }
+
+                    // Re-check type after possible ListItem unwrap
+                    if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                        $this->log("Skipping BreadcrumbList (unwrapped) at $url", 'debug');
+                        return;
                     }
 
                     $params['body']['data'] = $normalizedData;
