@@ -514,6 +514,81 @@ class OdisCrawlerTest extends TestCase
         $this->assertEquals('Test Org', $body['name']);
         $this->assertEquals('https://example.org/logo.png', $body['logo']);
     }
+
+    public function testFetchAndIndexImageObjectWithName()
+    {
+        $url = 'https://example.org/image-with-name.json';
+        $imageData = [
+            '@context' => 'https://schema.org',
+            '@type' => 'ImageObject',
+            'name' => 'Beautiful Ocean View',
+            'description' => 'A photo of the Atlantic Ocean during sunset.',
+            'contentUrl' => 'https://example.org/ocean.jpg',
+            'url' => 'https://example.org/image/1'
+        ];
+
+        $mock = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/ld+json'], json_encode($imageData))
+        ]);
+        $handlerStack = HandlerStack::create($mock);
+        $httpClient = new GuzzleClient(['handler' => $handlerStack]);
+
+        $esClientMock = new class implements ClientInterface {
+            public $indexCalls = [];
+            public function index(array $params) { $this->indexCalls[] = $params; return []; }
+            public function getTransport(): \Elastic\Transport\Transport { throw new \Exception(); }
+            public function getLogger(): \Psr\Log\LoggerInterface { throw new \Exception(); }
+            public function setAsync(bool $async): ClientInterface { return $this; }
+            public function getAsync(): bool { return false; }
+            public function setElasticMetaHeader(bool $active): ClientInterface { return $this; }
+            public function getElasticMetaHeader(): bool { return false; }
+            public function setResponseException(bool $active): ClientInterface { return $this; }
+            public function getResponseException(): bool { return false; }
+            public function setServerless(bool $value): ClientInterface { return $this; }
+            public function getServerless(): bool { return false; }
+            public function sendRequest(\Psr\Http\Message\RequestInterface $request) { throw new \Exception(); }
+        };
+
+        $robotsManagerMock = $this->createMock(RobotsTxtManager::class);
+        $robotsManagerMock->method('isAllowed')->willReturn(true);
+
+        $crawler = new OdisCrawler(
+            $esClientMock,
+            $this->createMock(LoggerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
+            $robotsManagerMock,
+            $httpClient
+        );
+        $crawler->setOutput(new NullOutput());
+
+        $crawler->fetchAndIndexJson($url);
+
+        $this->assertCount(1, $esClientMock->indexCalls);
+        $body = $esClientMock->indexCalls[0]['body'];
+        
+        $this->assertEquals('ImageObject', $body['@type']);
+        $this->assertEquals('Beautiful Ocean View', $body['name']);
+        $this->assertEquals('A photo of the Atlantic Ocean during sunset.', $body['description']);
+        $this->assertEquals('https://example.org/ocean.jpg', $body['contentUrl']);
+        $this->assertEquals('https://example.org/image/1', $body['url']);
+
+        // Test with headline and caption
+        $urlExtra = 'https://example.org/image-extra.json';
+        $extraData = [
+            '@type' => 'ImageObject',
+            'headline' => 'Ocean Sunset',
+            'caption' => 'A wonderful sunset view'
+        ];
+        $mock->append(new Response(200, ['Content-Type' => 'application/json'], json_encode($extraData)));
+        $esClientMock->indexCalls = [];
+        $crawler->fetchAndIndexJson($urlExtra);
+        
+        $this->assertCount(1, $esClientMock->indexCalls);
+        $bodyExtra = $esClientMock->indexCalls[0]['body'];
+        $this->assertEquals('Ocean Sunset', $bodyExtra['headline']);
+        $this->assertEquals('A wonderful sunset view', $bodyExtra['caption']);
+    }
+
     public function testFetchAndIndexMultiTypeArray()
     {
         $mockHandler = new MockHandler([

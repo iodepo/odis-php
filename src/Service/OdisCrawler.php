@@ -882,7 +882,8 @@ class OdisCrawler
                             '@type', 'schema:@type', 'keywords', 'schema:keywords',
                             'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished',
                             'image', 'schema:image', 'logo', 'schema:logo', 
-                            'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl'
+                            'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl',
+                            'caption', 'schema:caption', 'headline', 'schema:headline'
                         ];
 
                         $type = $item['@type']['value'] ?? $item['@type'] ?? '';
@@ -1042,7 +1043,8 @@ class OdisCrawler
                         '@type', 'schema:@type', 'keywords', 'schema:keywords',
                         'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished',
                         'image', 'schema:image', 'logo', 'schema:logo', 
-                        'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl'
+                        'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl',
+                        'caption', 'schema:caption', 'headline', 'schema:headline'
                     ];
                     foreach ($rootFields as $field) {
                         if (isset($normalizedData[$field])) {

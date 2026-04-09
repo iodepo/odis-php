@@ -131,7 +131,7 @@ class SearchController extends AbstractController
             $params['body']['query']['bool']['must'][] = [
                 'query_string' => [
                     'query'  => '*' . $query . '*',
-                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'schema:creator.*', 'schema:author.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', 'startDate', 'endDate', 'location', 'arrivalBoatTerminal.*', 'departureBoatTerminal.*', 'subEvent.*', 'schema:subEvent.*', 'sdPublisher.*', 'schema:sdPublisher.*', 'educationalCredentialAwarded', 'schema:educationalCredentialAwarded', 'inLanguage', 'schema:inLanguage', '*.name', '*.description'],
+                    'fields' => ['name^3', 'schema:name^3', 'description', 'schema:description', 'keywords^2', 'schema:keywords^2', 'text', 'url', '@id', 'attendee.*', 'contributor.*', 'organizer.*', 'performer.*', 'person.*', 'provider.*', 'creator.*', 'author.*', 'schema:creator.*', 'schema:author.*', 'schema:publisher.*', 'schema:provider.*', 'schema:funder.*', 'startDate', 'endDate', 'location', 'arrivalBoatTerminal.*', 'departureBoatTerminal.*', 'subEvent.*', 'schema:subEvent.*', 'sdPublisher.*', 'schema:sdPublisher.*', 'educationalCredentialAwarded', 'schema:educationalCredentialAwarded', 'inLanguage', 'schema:inLanguage', 'caption', 'schema:caption', 'headline', 'schema:headline', '*.name', '*.description'],
                     'default_operator' => 'AND',
                     'allow_leading_wildcard' => true
                 ]
