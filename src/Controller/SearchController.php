@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientInterface;
 use Elastic\Transport\Exception\NoNodeAvailableException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -11,10 +11,10 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class SearchController extends AbstractController
 {
-    private Client $esClient;
+    private ClientInterface $esClient;
     private string $esIndex = 'odis_metadata';
 
-    public function __construct(Client $esClient)
+    public function __construct(ClientInterface $esClient)
     {
         $this->esClient = $esClient;
     }
