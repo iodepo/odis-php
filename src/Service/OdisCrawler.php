@@ -1119,6 +1119,10 @@ class OdisCrawler
                             foreach ($parts as $part) {
                                 $results[] = $part;
                             }
+                        } elseif (is_array($decoded) && array_is_list($decoded)) {
+                            foreach ($decoded as $item) {
+                                $results[] = $item;
+                            }
                         } else {
                             $results[] = $decoded;
                         }
