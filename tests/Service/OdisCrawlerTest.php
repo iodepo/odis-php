@@ -514,4 +514,55 @@ class OdisCrawlerTest extends TestCase
         $this->assertEquals('Test Org', $body['name']);
         $this->assertEquals('https://example.org/logo.png', $body['logo']);
     }
+    public function testFetchAndIndexMultiTypeArray()
+    {
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/ld+json'], json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => ['Event', 'BoatTrip'],
+                'name' => 'Multi-type Event',
+                'description' => 'An event that is also a boat trip.'
+            ]))
+        ]);
+        $handlerStack = HandlerStack::create($mockHandler);
+        $httpClient = new GuzzleClient(['handler' => $handlerStack]);
+
+        $esClientMock = new class implements ClientInterface {
+            public $indexCalls = [];
+            public function index(array $params) { $this->indexCalls[] = $params; return []; }
+            public function getTransport(): \Elastic\Transport\Transport { throw new \Exception(); }
+            public function getLogger(): \Psr\Log\LoggerInterface { throw new \Exception(); }
+            public function setAsync(bool $async): ClientInterface { return $this; }
+            public function getAsync(): bool { return false; }
+            public function setElasticMetaHeader(bool $active): ClientInterface { return $this; }
+            public function getElasticMetaHeader(): bool { return false; }
+            public function setResponseException(bool $active): ClientInterface { return $this; }
+            public function getResponseException(): bool { return false; }
+            public function setServerless(bool $value): ClientInterface { return $this; }
+            public function getServerless(): bool { return false; }
+            public function sendRequest(\Psr\Http\Message\RequestInterface $request) { throw new \Exception(); }
+        };
+
+        $robotsManagerMock = $this->createMock(RobotsTxtManager::class);
+        $robotsManagerMock->method('isAllowed')->willReturn(true);
+
+        $crawler = new OdisCrawler(
+            $esClientMock,
+            $this->createMock(LoggerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
+            $robotsManagerMock,
+            $httpClient
+        );
+        $crawler->setOutput(new NullOutput());
+
+        $crawler->fetchAndIndexJson('https://example.com/multi-type');
+
+        $this->assertCount(1, $esClientMock->indexCalls);
+        $body = $esClientMock->indexCalls[0]['body'];
+        
+        // This is what we expect to fix. Currently it's likely '["Event","BoatTrip"]'
+        $this->assertNotEquals('["Event","BoatTrip"]', $body['@type']);
+        // We'll aim for something like "Event, BoatTrip"
+        $this->assertEquals('Event, BoatTrip', $body['@type']);
+    }
 }

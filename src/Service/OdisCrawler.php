@@ -946,7 +946,13 @@ class OdisCrawler
                                     
                                     // If it's still an array after trying to extract URL, stringify it
                                     if (is_array($val)) {
-                                        $val = $val['value'] ?? json_encode($val);
+                                        if (array_is_list($val)) {
+                                            $val = implode(', ', array_map(function($v) {
+                                                return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                            }, $val));
+                                        } else {
+                                            $val = $val['value'] ?? json_encode($val);
+                                        }
                                     }
                                 }
 
@@ -1056,7 +1062,13 @@ class OdisCrawler
 
                                 // If it's still an array after trying to extract URL, stringify it
                                 if (is_array($val)) {
-                                    $val = $val['value'] ?? json_encode($val);
+                                    if (array_is_list($val)) {
+                                        $val = implode(', ', array_map(function($v) {
+                                            return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
+                                        }, $val));
+                                    } else {
+                                        $val = $val['value'] ?? json_encode($val);
+                                    }
                                 }
                             }
 
