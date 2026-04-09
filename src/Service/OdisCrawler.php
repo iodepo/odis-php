@@ -369,6 +369,14 @@ class OdisCrawler
                 'schema:contactPoint' => ['type' => 'flattened'],
                 'inLanguage' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
                 'schema:inLanguage' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'image' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:image' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'logo' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:logo' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'thumbnail' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:thumbnail' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'contentUrl' => ['type' => 'keyword'],
+                'schema:contentUrl' => ['type' => 'keyword'],
                 'data' => [
                     'type' => 'object',
                     'dynamic' => true
@@ -872,7 +880,9 @@ class OdisCrawler
                             'name', 'schema:name', 'title', 'schema:title',
                             'description', 'schema:description', 
                             '@type', 'schema:@type', 'keywords', 'schema:keywords',
-                            'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                            'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished',
+                            'image', 'schema:image', 'logo', 'schema:logo', 
+                            'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl'
                         ];
 
                         $type = $item['@type']['value'] ?? $item['@type'] ?? '';
@@ -910,12 +920,34 @@ class OdisCrawler
                         'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
                     ];
 
-                        foreach ($rootFields as $field) {
+                    // If item itself has a 'url' (like ImageObject), use it as the root 'url' if it's a string
+                    if (isset($item['url'])) {
+                        $itemUrl = is_array($item['url']) ? ($item['url']['value'] ?? null) : $item['url'];
+                        if (is_string($itemUrl)) {
+                            $body['url'] = $itemUrl;
+                        }
+                    }
+
+                    foreach ($rootFields as $field) {
                             if (isset($item[$field])) {
                                 if (is_array($item[$field]) && isset($item[$field]['value'])) {
                                     $val = $item[$field]['value'];
                                 } else {
                                     $val = $item[$field];
+                                }
+
+                                // If the field is an object (like an ImageObject), try to extract its URL
+                                if (is_array($val)) {
+                                    if (isset($val['url'])) {
+                                        $val = is_array($val['url']) ? ($val['url']['value'] ?? $val['url']) : $val['url'];
+                                    } elseif (isset($val['contentUrl'])) {
+                                        $val = is_array($val['contentUrl']) ? ($val['contentUrl']['value'] ?? $val['contentUrl']) : $val['contentUrl'];
+                                    }
+                                    
+                                    // If it's still an array after trying to extract URL, stringify it
+                                    if (is_array($val)) {
+                                        $val = $val['value'] ?? json_encode($val);
+                                    }
                                 }
 
                                 if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
@@ -989,12 +1021,22 @@ class OdisCrawler
 
                     $params['body']['data'] = $normalizedData;
 
+                    // If item itself has a 'url', use it as the root 'url' if it's a string
+                    if (isset($normalizedData['url'])) {
+                        $itemUrl = is_array($normalizedData['url']) ? ($normalizedData['url']['value'] ?? null) : $normalizedData['url'];
+                        if (is_string($itemUrl)) {
+                            $params['body']['url'] = $itemUrl;
+                        }
+                    }
+
                     // Extract root-level fields from wrapped objects before indexing
                     $rootFields = [
                         'name', 'schema:name', 'title', 'schema:title',
                         'description', 'schema:description', 
                         '@type', 'schema:@type', 'keywords', 'schema:keywords',
-                        'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                        'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished',
+                        'image', 'schema:image', 'logo', 'schema:logo', 
+                        'thumbnail', 'schema:thumbnail', 'contentUrl', 'schema:contentUrl'
                     ];
                     foreach ($rootFields as $field) {
                         if (isset($normalizedData[$field])) {
@@ -1002,6 +1044,20 @@ class OdisCrawler
                                 $val = $normalizedData[$field]['value'];
                             } else {
                                 $val = $normalizedData[$field];
+                            }
+
+                            // If the field is an object (like an ImageObject), try to extract its URL
+                            if (is_array($val)) {
+                                if (isset($val['url'])) {
+                                    $val = is_array($val['url']) ? ($val['url']['value'] ?? $val['url']) : $val['url'];
+                                } elseif (isset($val['contentUrl'])) {
+                                    $val = is_array($val['contentUrl']) ? ($val['contentUrl']['value'] ?? $val['contentUrl']) : $val['contentUrl'];
+                                }
+
+                                // If it's still an array after trying to extract URL, stringify it
+                                if (is_array($val)) {
+                                    $val = $val['value'] ?? json_encode($val);
+                                }
                             }
 
                             if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
