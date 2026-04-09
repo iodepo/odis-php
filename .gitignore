@@ -20,6 +20,11 @@ vendor/
 .project
 .settings
 
+
+
 reed_results.json
+
+#testing stuff
 .phpunit.cache/
 .phpunit.cache/*
+.output.txt
