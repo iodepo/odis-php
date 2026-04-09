@@ -269,7 +269,7 @@
                                             </a>
                                             {% if primaryLink == '#' %}
                                                 <div class="text-danger small mt-1">
-                                                    <i class="fa fa-exclamation-triangle mr-1"></i>{{ 'search.no_link'|trans }}
+                                                    <i class="fas fa-exclamation-triangle mr-1"></i>{{ 'search.no_link'|trans }}
                                                 </div>
                                             {% endif %}
                                         </h5>
@@ -291,7 +291,7 @@
                                                         data-name="{{ dataName|trim }}"
                                                         data-exclude-id="{{ hit._id }}"
                                                         title="{{ 'search.show_relations'|trans }}">
-                                                    <i class="fa fa-sitemap"></i>
+                                                    <i class="fas fa-sitemap"></i>
                                                 </button>
                                             {% endif %}
                                             <span class="badge badge-light border text-muted small" title="Relevance Score: {{ hit._score }}">
@@ -301,7 +301,7 @@
                                     </div>
                                     
                                     <h6 class="card-subtitle mb-2 text-muted small">
-                                        <i class="fa fa-link mr-1"></i>{{ primaryLink != '#' ? primaryLink : 'No URL available'|trans }}
+                                        <i class="fas fa-link mr-1"></i>{{ primaryLink != '#' ? primaryLink : 'No URL available'|trans }}
                                         {% if attribute(source, '@type') is defined %}
     <span class="ml-2 badge badge-pill badge-light border">
         {% set typeRaw = attribute(source, '@type') %}
@@ -338,7 +338,7 @@
                                     
                         {% if source.keywords is defined or (hit.highlight is defined and hit.highlight.keywords is defined) %}
                                         <div class="mt-2">
-                                            <i class="fa fa-tags mr-1 text-muted small"></i>
+                                            <i class="fas fa-tags mr-1 text-muted small"></i>
                                             {% if hit.highlight is defined and hit.highlight.keywords is defined %}
                                                 {% for kw in hit.highlight.keywords %}
                                                     <span class="badge badge-info">{{ kw|raw }}</span>
@@ -376,7 +376,7 @@
                                         <div class="mt-3 p-2 bg-light rounded border-left border-primary small">
                                             {% if hit.highlight is defined %}
                                                 <div class="mb-1">
-                                                    <strong class="text-primary"><i class="fa fa-info-circle mr-1"></i> {{ 'search.why_this_result'|trans }}</strong>
+                                                    <strong class="text-primary"><i class="fas fa-info-circle mr-1"></i> {{ 'search.why_this_result'|trans }}</strong>
                                                     <div class="text-muted ml-1 mt-1">
                                                         {% for field, matches in hit.highlight %}
                                                             <div class="mb-2">
@@ -393,7 +393,7 @@
                                             {% endif %}
                                             {% if source.odis_cat_id is defined %}
                                                 <div class="mt-1">
-                                                    <i class="fa fa-database mr-1 text-muted"></i> Source: 
+                                                    <i class="fas fa-database mr-1 text-muted"></i> Source:
                                                     <a href="{{ source.odis_cat_url|default('https://catalogue.odis.org/view/' ~ source.odis_cat_id) }}" target="_blank" class="text-secondary font-weight-bold">
                                                         ODIS Catalogue ID {{ source.odis_cat_id }}
                                                     </a>
@@ -695,7 +695,7 @@
                     <td>${rel.name}</td>
                     <td><span class="badge badge-light border">${rel.type}</span></td>
                     <td><span class="text-capitalize">${rel.role}</span></td>
-                    <td><a href="${rel.url}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="fa fa-external-link-alt"></i> View</a></td>
+                    <td><a href="${rel.url}" target="_blank" class="btn btn-xs btn-outline-primary"><i class="fas fa-external-link-alt"></i> View</a></td>
                 `;
                 body.appendChild(tr);
             });

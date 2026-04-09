@@ -18,11 +18,11 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-12 mb-4">
-            <h1 class="display-4"><i class="fa fa-chart-line mr-3"></i>{{ 'dashboard.title'|trans }}</h1>
+            <h1 class="display-4"><i class="fas fa-chart-line mr-3"></i>{{ 'dashboard.title'|trans }}</h1>
             <p class="lead">{{ 'dashboard.lead'|trans }}</p>
             <div id="crawl-status-indicator" class="d-none">
                 <span class="badge badge-warning p-2">
-                    <i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.crawl_in_progress'|trans }}
+                    <i class="fas fa-spinner fa-spin mr-1"></i> {{ 'dashboard.crawl_in_progress'|trans }}
                 </span>
             </div>
         </div>
@@ -31,7 +31,7 @@
     <div class="row justify-content-center">
         <div class="col-md-12 {% if not esError %}d-none{% endif %}">
             <div class="alert alert-warning shadow-sm border-warning">
-                <h5 class="alert-heading text-warning-emphasis"><i class="fa fa-exclamation-triangle mr-2"></i> Elasticsearch Issue</h5>
+                <h5 class="alert-heading text-warning-emphasis"><i class="fas fa-exclamation-triangle mr-2"></i> Elasticsearch Issue</h5>
                 <p class="mb-0" id="es-error-alert">{{ esError }}</p>
             </div>
         </div>
@@ -51,7 +51,7 @@
             <div class="col-md-8 text-center mt-5">
                 <div class="card shadow-sm">
                     <div class="card-body py-5">
-                        <i class="fa fa-database fa-4x text-muted mb-3"></i>
+                        <i class="fas fa-database fa-4x text-muted mb-3"></i>
                         <h3>{{ 'dashboard.no_stats'|trans }}</h3>
                         <p class="text-muted">{{ 'dashboard.no_stats_text'|trans }}</p>
                         <a href="{{ path('app_home') }}" class="btn btn-primary">{{ 'dashboard.how_to_start'|trans }}</a>
@@ -97,7 +97,7 @@
                                 <h6 class="text-uppercase small">{{ 'dashboard.invalid'|trans }}</h6>
                                 <h2 class="h1" id="stat-invalid">{{ totalInvalid }}</h2>
                                 <p class="mb-0 small">{{ 'dashboard.format'|trans }}</p>
-                                <span class="badge badge-light mt-2"><i class="fa fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
+                                <span class="badge badge-light mt-2"><i class="fas fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
                             </div>
                         </div>
                     </a>
@@ -109,7 +109,7 @@
                                 <h6 class="text-uppercase small font-weight-bold">{{ 'dashboard.summary_errors'|trans }}</h6>
                                 <h2 class="h1" id="stat-errors">{{ totalIssues }}</h2>
                                 <p class="mb-0 small">{{ 'dashboard.issues_logged'|trans }}</p>
-                                <span class="badge badge-dark mt-2"><i class="fa fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
+                                <span class="badge badge-dark mt-2"><i class="fas fa-download mr-1"></i>{{ 'dashboard.report'|trans }}</span>
                             </div>
                         </div>
                     </a>
@@ -121,7 +121,7 @@
                     <h5 class="mb-0">{{ 'dashboard.crawl_history'|trans }}</h5>
                     <form action="{{ path('app_dashboard_clear_stats') }}" method="POST" onsubmit="return confirm('{{ 'dashboard.confirm_clear_stats'|trans }}');">
                         <button type="submit" class="btn btn-outline-danger btn-sm">
-                            <i class="fa fa-trash mr-1"></i> {{ 'dashboard.clear_all_stats'|trans }}
+                            <i class="fas fa-trash mr-1"></i> {{ 'dashboard.clear_all_stats'|trans }}
                         </button>
                     </form>
                 </div>
@@ -145,7 +145,7 @@
                             <tr>
                                 <td>{{ stat.createdAt|date('Y-m-d H:i:s') }}</td>
                                 <td>
-                                    <i class="fa fa-clock-o mr-1"></i>
+                                    <i class="far fa-clock mr-1"></i>
                                     <span class="badge badge-secondary">{{ stat.duration|default('0s') }}</span>
                                 </td>
                                 <td>{{ stat.nodesFound }}</td>
@@ -164,7 +164,7 @@
                                 <td class="text-right">
                                     {% if stat.errorDetails is not empty or stat.commandLine is not empty %}
                                         <button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#details-{{ stat.id }}">
-                                            <i class="fa fa-info-circle"></i> {{ 'dashboard.info'|trans }}
+                                            <i class="fas fa-info-circle"></i> {{ 'dashboard.info'|trans }}
                                         </button>
                                     {% else %}
                                         <span class="text-muted small">None</span>
@@ -180,7 +180,7 @@
                                     <h6 class="font-weight-bold">{{ 'dashboard.execution_period'|trans }}:</h6>
                                     <div class="small">
                                         <strong>{{ 'dashboard.started'|trans }}:</strong> {{ stat.createdAt|date('Y-m-d H:i:s') }}<br>
-                                        <strong>{{ 'dashboard.finished'|trans }}:</strong> {% if stat.finishedAt %}{{ stat.finishedAt|date('Y-m-d H:i:s') }}{% else %}<span class="badge badge-warning"><i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>{% endif %}<br>
+                                        <strong>{{ 'dashboard.finished'|trans }}:</strong> {% if stat.finishedAt %}{{ stat.finishedAt|date('Y-m-d H:i:s') }}{% else %}<span class="badge badge-warning"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>{% endif %}<br>
                                         <strong>{{ 'dashboard.total_duration'|trans }}:</strong> {{ stat.duration|default('0s') }}
                                     </div>
                                 </div>
@@ -218,7 +218,7 @@
             </div>
             
             <div class="mt-4 text-muted small">
-                <p><i class="fa fa-clock-o mr-1"></i> {{ 'dashboard.last_update'|trans }}: <span id="last-update-time">{{ latestStat.createdAt|date('Y-m-d H:i:s') }}</span></p>
+                <p><i class="far fa-clock mr-1"></i> {{ 'dashboard.last_update'|trans }}: <span id="last-update-time">{{ latestStat.createdAt|date('Y-m-d H:i:s') }}</span></p>
             </div>
 
             <div id="processed-section" class="{% if processedEntries is empty %}d-none{% endif %}">
@@ -353,7 +353,7 @@
                                     processedHtml += '            <ul class="list-unstyled mb-0 small text-danger">';
                                     entry.errors.forEach(function(error) {
                                         var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
-                                        processedHtml += '                <li class="text-truncate" title="' + message + '"><i class="fa fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
+                                        processedHtml += '                <li class="text-truncate" title="' + message + '"><i class="fas fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
                                     });
                                     processedHtml += '            </ul>';
                                     processedHtml += '        </div>';
@@ -382,7 +382,7 @@
 
                             html += '<tr>';
                             html += '<td>' + stat.createdAt + '</td>';
-                            html += '<td><i class="fa fa-clock-o mr-1"></i><span class="badge badge-secondary">' + stat.duration + '</span></td>';
+                            html += '<td><i class="far fa-clock mr-1"></i><span class="badge badge-secondary">' + stat.duration + '</span></td>';
                             html += '<td>' + stat.nodesFound + '</td>';
                             html += '<td>' + stat.pagesCrawled + '</td>';
                             html += '<td class="text-success font-weight-bold">' + stat.validJsonLds + '</td>';
@@ -391,7 +391,7 @@
                             html += '<td>' + stat.successRate + '</td>';
                             html += '<td class="text-right">';
                             if (stat.hasErrors || stat.commandLine) {
-                                html += '<button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#' + collapseId + '"><i class="fa fa-info-circle"></i> {{ 'dashboard.info'|trans }}</button>';
+                                html += '<button class="btn btn-sm btn-outline-info" type="button" data-toggle="collapse" data-target="#' + collapseId + '"><i class="fas fa-info-circle"></i> {{ 'dashboard.info'|trans }}</button>';
                             } else {
                                 html += '<span class="text-muted small">None</span>';
                             }
@@ -407,7 +407,7 @@
                                 html += '<h6 class="font-weight-bold">{{ 'dashboard.execution_period'|trans }}:</h6>';
                                 html += '<div class="small">';
                                 html += '<strong>{{ 'dashboard.started'|trans }}:</strong> ' + stat.createdAt + '<br>';
-                                html += '<strong>{{ 'dashboard.finished'|trans }}:</strong> ' + (stat.finishedAt ? stat.finishedAt : '<span class="badge badge-warning"><i class="fa fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>') + '<br>';
+                                html += '<strong>{{ 'dashboard.finished'|trans }}:</strong> ' + (stat.finishedAt ? stat.finishedAt : '<span class="badge badge-warning"><i class="fas fa-spinner fa-spin mr-1"></i> {{ 'dashboard.running'|trans }}...</span>') + '<br>';
                                 html += '<strong>{{ 'dashboard.total_duration'|trans }}:</strong> ' + stat.duration;
                                 html += '</div>';
                                 html += '</div>';
@@ -423,7 +423,7 @@
                                     html += '<ul class="mb-0 small text-danger">';
                                     stat.errorDetails.forEach(function(error) {
                                         var message = typeof error === 'object' ? (error.message || 'Unknown error') : error;
-                                        html += '<li><i class="fa fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
+                                        html += '<li><i class="fas fa-exclamation-triangle mr-1"></i> ' + message + '</li>';
                                     });
                                     html += '</ul>';
                                 }
