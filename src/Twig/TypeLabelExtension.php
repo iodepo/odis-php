@@ -38,6 +38,11 @@ class TypeLabelExtension extends AbstractExtension
             'https://schema.org/',
             'schema:'
         ], '', $str);
-        return $str;
+        
+        // Add spaces before capitals for better readability (PascalCase to Sentence case)
+        // Ensure we don't add space after an existing space or comma-space
+        $str = preg_replace('/(?<=[a-z])([A-Z])/', ' $1', $str);
+        
+        return ucfirst(strtolower(trim($str)));
     }
 }

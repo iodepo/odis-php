@@ -98,7 +98,24 @@ class SearchController extends AbstractController
                     'coalesced_type' => [
                         'type' => 'keyword',
                         'script' => [
-                            'source' => 'def t = null; if (params._source.containsKey("@type")) { t = params._source["@type"]; if (t instanceof List) { for (def v : t) { if (v != null) emit(v.toString()); } } else if (t != null) { emit(t.toString()); } } else if (params._source.containsKey("data")) { def d = params._source["data"]; if (d == null) return; if (d instanceof Map) { t = d["@type"]; if (t instanceof List) { for (def v : t) { if (v != null) emit(v.toString()); } } else if (t != null) { emit(t.toString()); } } else if (d instanceof List) { for (def e : d) { if (e instanceof Map && e.containsKey("@type")) { def tv = e["@type"]; if (tv instanceof List) { for (def v2 : tv) { if (v2 != null) emit(v2.toString()); } } else if (tv != null) { emit(tv.toString()); } } } } }'
+                            'source' => "
+                                String type = '';
+                                if (doc.containsKey('@type.keyword') && doc['@type.keyword'].size() > 0) {
+                                    type = doc['@type.keyword'].value;
+                                } else if (doc.containsKey('schema:additionalType.keyword') && doc['schema:additionalType.keyword'].size() > 0) {
+                                    type = doc['schema:additionalType.keyword'].value;
+                                }
+                                if (type != null && type != '') {
+                                    // Normalize: strip schema.org prefixes, wrappers, and lowercase
+                                    type = type.replace('https://schema.org/', '')
+                                               .replace('http://schema.org/', '')
+                                               .replace('schema:', '');
+                                    if (type.startsWith('{value=') && type.endsWith('}')) {
+                                        type = type.substring(7, type.length() - 1);
+                                    }
+                                    emit(type.toLowerCase());
+                                }
+                            "
                         ]
                     ]
                 ],
