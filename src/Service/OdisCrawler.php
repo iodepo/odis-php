@@ -949,10 +949,16 @@ class OdisCrawler
                                     if (is_array($val)) {
                                         if (array_is_list($val)) {
                                             $val = implode(', ', array_map(function($v) {
+                                                if (is_array($v) && isset($v['name'])) {
+                                                    return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                                }
                                                 return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
                                             }, $val));
                                         } else {
-                                            $val = $val['value'] ?? json_encode($val);
+                                            $val = $val['name'] ?? $val['value'] ?? json_encode($val);
+                                            if (is_array($val)) {
+                                                $val = $val['value'] ?? json_encode($val);
+                                            }
                                         }
                                     }
                                 }
@@ -1066,10 +1072,16 @@ class OdisCrawler
                                 if (is_array($val)) {
                                     if (array_is_list($val)) {
                                         $val = implode(', ', array_map(function($v) {
+                                            if (is_array($v) && isset($v['name'])) {
+                                                return is_array($v['name']) ? ($v['name']['value'] ?? json_encode($v['name'])) : $v['name'];
+                                            }
                                             return is_array($v) ? ($v['value'] ?? json_encode($v)) : $v;
                                         }, $val));
                                     } else {
-                                        $val = $val['value'] ?? json_encode($val);
+                                        $val = $val['name'] ?? $val['value'] ?? json_encode($val);
+                                        if (is_array($val)) {
+                                            $val = $val['value'] ?? json_encode($val);
+                                        }
                                     }
                                 }
                             }

@@ -640,4 +640,74 @@ class OdisCrawlerTest extends TestCase
         // We'll aim for something like "Event, BoatTrip"
         $this->assertEquals('Event, BoatTrip', $body['@type']);
     }
+
+    public function testFetchAndIndexDefinedTermKeywords()
+    {
+        $url = 'https://example.org/defined-terms.json';
+        $data = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Dataset',
+            'name' => 'MEDIN Dataset',
+            'keywords' => [
+                [
+                    '@type' => 'DefinedTerm',
+                    'name' => 'Marine Biodiversity',
+                    'termCode' => 'MD002'
+                ],
+                [
+                    '@type' => 'DefinedTerm',
+                    'name' => 'Renewable Energy Lease area'
+                ]
+            ],
+            'schema:keywords' => [
+                [
+                    '@type' => 'DefinedTerm',
+                    'name' => 'Post-Construction monitoring'
+                ]
+            ]
+        ];
+
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'application/ld+json'], json_encode($data))
+        ]);
+        $handlerStack = HandlerStack::create($mockHandler);
+        $httpClient = new GuzzleClient(['handler' => $handlerStack]);
+
+        $esClientMock = new class implements ClientInterface {
+            public $indexCalls = [];
+            public function index(array $params) { $this->indexCalls[] = $params; return []; }
+            public function getTransport(): \Elastic\Transport\Transport { throw new \Exception(); }
+            public function getLogger(): \Psr\Log\LoggerInterface { throw new \Exception(); }
+            public function setAsync(bool $async): ClientInterface { return $this; }
+            public function getAsync(): bool { return false; }
+            public function setElasticMetaHeader(bool $active): ClientInterface { return $this; }
+            public function getElasticMetaHeader(): bool { return false; }
+            public function setResponseException(bool $active): ClientInterface { return $this; }
+            public function getResponseException(): bool { return false; }
+            public function setServerless(bool $value): ClientInterface { return $this; }
+            public function getServerless(): bool { return false; }
+            public function sendRequest(\Psr\Http\Message\RequestInterface $request) { throw new \Exception(); }
+        };
+
+        $robotsManagerMock = $this->createMock(RobotsTxtManager::class);
+        $robotsManagerMock->method('isAllowed')->willReturn(true);
+
+        $crawler = new OdisCrawler(
+            $esClientMock,
+            $this->createMock(LoggerInterface::class),
+            $this->createMock(EntityManagerInterface::class),
+            $robotsManagerMock,
+            $httpClient
+        );
+        $crawler->setOutput(new NullOutput());
+
+        $crawler->fetchAndIndexJson($url);
+
+        $this->assertCount(1, $esClientMock->indexCalls);
+        $body = $esClientMock->indexCalls[0]['body'];
+        
+        // Assert that keywords are flattened to their names
+        $this->assertEquals('Marine Biodiversity, Renewable Energy Lease area', $body['keywords']);
+        $this->assertEquals('Post-Construction monitoring', $body['schema:keywords']);
+    }
 }
