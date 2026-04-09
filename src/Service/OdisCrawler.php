@@ -288,7 +288,8 @@ class OdisCrawler
                     'fields' => ['keyword' => ['type' => 'keyword']]
                 ],
                 'description' => ['type' => 'text'],
-                'keywords' => ['type' => 'flattened'],
+                'keywords' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
+                'schema:keywords' => ['type' => 'text', 'fields' => ['keyword' => ['type' => 'keyword']]],
                 'knowsAbout' => ['type' => 'flattened'],
                 'distribution' => ['type' => 'flattened'],
                 'identifier' => ['type' => 'flattened'],
@@ -338,7 +339,6 @@ class OdisCrawler
                     'fields' => ['keyword' => ['type' => 'keyword']]
                 ],
                 'schema:description' => ['type' => 'text'],
-                'schema:keywords' => ['type' => 'flattened'],
                 'license' => ['type' => 'flattened'],
                 'schema:license' => ['type' => 'flattened'],
                 'citation' => ['type' => 'flattened'],
@@ -615,7 +615,7 @@ class OdisCrawler
         }
     }
 
-    private function normalizeDataForSafeIndexing(array $data): array
+    public function normalizeDataForSafeIndexing(array $data): array
     {
         foreach ($data as $key => $value) {
             if (is_array($value)) {
@@ -732,7 +732,7 @@ class OdisCrawler
         return "Unknown error occurred during processing. Solution: Check the crawler logs for more details.";
     }
 
-    private function fetchAndIndexJson(string $url): void
+    public function fetchAndIndexJson(string $url): void
     {
         if (!$this->robotsManager->isAllowed($url)) {
             $this->log("URL $url is disallowed by robots.txt", 'warning');
@@ -875,26 +875,49 @@ class OdisCrawler
                         }
                         $itemId = $itemId ?: md5($url . $index);
 
-                        // Extract root-level fields from wrapped objects before indexing
-                        $rootFields = [
-                            'name', 'schema:name', 'description', 'schema:description', 
-                            '@type', 'schema:@type', 'keywords', 'schema:keywords',
-                            'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
-                        ];
-                        $body = [
-                            'url' => $url,
-                            'data' => $item,
-                            'datasource_id' => $this->currentDatasourceId,
-                            'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
-                        ];
+                    // Extract root-level fields from wrapped objects before indexing
+                    $rootFields = [
+                        'name', 'schema:name', 'description', 'schema:description', 
+                        '@type', 'schema:@type', 'keywords', 'schema:keywords',
+                        'inLanguage', 'schema:inLanguage', 'datePublished', 'schema:datePublished'
+                    ];
+
+                    // Special case for ItemList and ListItem: unwrap if they contain an 'item'
+                    // This happens for sources like Aquadocs (ID 283)
+                    $type = $item['@type']['value'] ?? $item['@type'] ?? '';
+                    if (($type === 'ListItem' || $type === 'schema:ListItem') && isset($item['item'])) {
+                        // The real item is nested inside 'item'
+                        // We merge fields from the ListItem (like position) if they don't exist in the inner item
+                        $innerItem = $item['item'];
+                        foreach ($item as $k => $v) {
+                            if ($k !== 'item' && !isset($innerItem[$k])) {
+                                $innerItem[$k] = $v;
+                            }
+                        }
+                        $item = $innerItem;
+                    }
+
+                    $body = [
+                        'url' => $url,
+                        'data' => $item,
+                        'datasource_id' => $this->currentDatasourceId,
+                        'indexed_at' => (new \DateTime())->format('Y-m-d H:i:s')
+                    ];
 
                         foreach ($rootFields as $field) {
                             if (isset($item[$field])) {
                                 if (is_array($item[$field]) && isset($item[$field]['value'])) {
-                                    $body[$field] = $item[$field]['value'];
+                                    $val = $item[$field]['value'];
                                 } else {
-                                    $body[$field] = $item[$field];
+                                    $val = $item[$field];
                                 }
+
+                                if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
+                                    $val = implode(', ', array_map(function($k) {
+                                        return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
+                                    }, $val));
+                                }
+                                $body[$field] = $val;
                             }
                         }
 
@@ -925,6 +948,19 @@ class OdisCrawler
 
                     // Normalize data for safe indexing
                     $normalizedData = $this->normalizeDataForSafeIndexing($data);
+                    
+                    // Special case for ItemList and ListItem: unwrap if they contain an 'item'
+                    $type = $normalizedData['@type']['value'] ?? $normalizedData['@type'] ?? '';
+                    if (($type === 'ListItem' || $type === 'schema:ListItem') && isset($normalizedData['item'])) {
+                        $innerItem = $normalizedData['item'];
+                        foreach ($normalizedData as $k => $v) {
+                            if ($k !== 'item' && !isset($innerItem[$k])) {
+                                $innerItem[$k] = $v;
+                            }
+                        }
+                        $normalizedData = $innerItem;
+                    }
+
                     $params['body']['data'] = $normalizedData;
 
                     // Extract root-level fields from wrapped objects before indexing
@@ -936,10 +972,17 @@ class OdisCrawler
                     foreach ($rootFields as $field) {
                         if (isset($normalizedData[$field])) {
                             if (is_array($normalizedData[$field]) && isset($normalizedData[$field]['value'])) {
-                                $params['body'][$field] = $normalizedData[$field]['value'];
+                                $val = $normalizedData[$field]['value'];
                             } else {
-                                $params['body'][$field] = $normalizedData[$field];
+                                $val = $normalizedData[$field];
                             }
+
+                            if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
+                                $val = implode(', ', array_map(function($k) {
+                                    return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
+                                }, $val));
+                            }
+                            $params['body'][$field] = $val;
                         }
                     }
                     unset($data); // Free memory before indexing

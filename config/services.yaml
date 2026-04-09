@@ -32,6 +32,8 @@ services:
     Elastic\Elasticsearch\Client:
         factory: ['@Elastic\Elasticsearch\ClientBuilder', 'build']
 
+    Elastic\Elasticsearch\ClientInterface: '@Elastic\Elasticsearch\Client'
+
     App\EventListener\LocaleListener:
         arguments:
             $defaultLocale: 'en'
