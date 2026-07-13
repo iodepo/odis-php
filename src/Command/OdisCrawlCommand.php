@@ -56,6 +56,11 @@ class OdisCrawlCommand extends Command
     private EntityManagerInterface $entityManager;
     private Client $esClient;
 
+    /**
+     * @param OdisCrawler $crawler
+     * @param EntityManagerInterface $entityManager
+     * @param Client $esClient
+     */
     public function __construct(
         OdisCrawler $crawler,
         EntityManagerInterface $entityManager,
@@ -67,6 +72,11 @@ class OdisCrawlCommand extends Command
         $this->esClient = $esClient;
     }
 
+    /**
+     * Configures the command options and arguments.
+     * 
+     * @return void
+     */
     protected function configure(): void
     {
         $this
@@ -109,23 +119,35 @@ class OdisCrawlCommand extends Command
             );
     }
 
+    /**
+     * Executes the crawling process.
+     * 
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @return int
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         ini_set('memory_limit', '512M');
         $io = new SymfonyStyle($input, $output);
         $io->title('ODIS Metadata Crawler');
 
+        // Reconstruct the command line used to launch this command for logging purposes
         $commandLine = 'php bin/console ' . $this->getName();
         foreach ($_SERVER['argv'] as $i => $arg) {
+            // Skip the binary and command name to avoid duplication
             if ($i === 0 || $arg === 'bin/console' || $arg === $this->getName()) continue;
+            // Wrap arguments with spaces in quotes
             $commandLine .= ' ' . (str_contains($arg, ' ') ? '"' . $arg . '"' : $arg);
         }
         $this->crawler->setCommandLine($commandLine);
 
+        // Increase verbosity of the crawler if the command is run with -v, -vv, or -vvv
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
             $this->crawler->setOutput($output);
         }
 
+        // Apply record limit if provided to restrict the amount of data fetched per source
         $limit = (int) $input->getOption('limit');
         if ($limit > 0) {
             $this->crawler->setLimit($limit);
@@ -146,6 +168,7 @@ class OdisCrawlCommand extends Command
             return Command::FAILURE;
         }
 
+        // Optional: wipe the Elasticsearch index before starting if requested
         if ($input->getOption('clear-index')) {
             $io->warning('Clearing Elasticsearch index...');
             try {
@@ -156,13 +179,16 @@ class OdisCrawlCommand extends Command
             }
         }
 
+        // Parse both included and excluded IDs (handles comma-separated strings)
         $ids = $this->parseIds($input->getArgument('ids'));
         $skipIds = $this->parseIds($input->getOption('skip'));
 
+        // Branch to parallel execution if the --parallel flag is set
         if ($input->getOption('parallel')) {
             return $this->executeParallel($input, $output, $ids, $skipIds);
         }
 
+        // Default: run sequential crawl
         $this->crawler->run($ids, $skipIds);
 
         $io->success('Crawl completed.');
@@ -170,6 +196,15 @@ class OdisCrawlCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * Executes the crawl in parallel for multiple data sources.
+     * 
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param array $ids
+     * @param array $skipIds
+     * @return int
+     */
     private function executeParallel(
         InputInterface $input,
         OutputInterface $output,
@@ -208,6 +243,7 @@ class OdisCrawlCommand extends Command
             )
         );
 
+        // Record a master statistic entry to track the overall progress of this parallel session
         $masterStat = new CrawlStat();
         $masterStat->setType('parallel_master');
         $masterStat->setStatus('in_progress');
@@ -224,12 +260,15 @@ class OdisCrawlCommand extends Command
         $progressBar = $io->createProgressBar($total);
         $progressBar->start();
 
+        // Main process management loop
         while ($completed < $total) {
-            // Fill up processes to concurrency limit
+            // Spawn new child processes up to the concurrency limit
             while (count($processes) < $concurrency && $currentIndex < $total) {
                 $id = $idsToCrawl[$currentIndex++];
+                
                 // Build command: php bin/console app:odis:crawl <id>
-                // We don't pass --parallel to child processes to avoid recursion
+                // IMPORTANT: We do NOT pass --parallel to child processes to avoid infinite recursion.
+                // Child processes will run sequentially for their assigned single source ID.
                 $args = [PHP_BINARY, '-d', 'memory_limit=512M', 'bin/console', 'app:odis:crawl', $id];
                 if ($limit > 0) {
                     $args[] = '--limit';
@@ -240,23 +279,26 @@ class OdisCrawlCommand extends Command
                 $processes[$id] = $process;
             }
 
-            // Check for finished processes
+            // Monitor active processes and clean up those that have finished
             foreach ($processes as $id => $process) {
                 if (!$process->isRunning()) {
                     $completed++;
                     $progressBar->advance();
                     
                     if (!$process->isSuccessful()) {
+                        // Log failure but continue with other sources
                         $io->error(sprintf('Process for ID %s failed: %s', $id, $process->getErrorOutput()));
                         $masterStat->setCrawlerErrors($masterStat->getCrawlerErrors() + 1);
                         $masterStat->addErrorDetail("ID $id failed: " . substr($process->getErrorOutput(), 0, 200));
                     }
                     
                     unset($processes[$id]);
+                    // Flush DB changes periodically (after each source completion)
                     $this->entityManager->flush();
                 }
             }
 
+            // Avoid high CPU usage while waiting for processes
             usleep(100000); // 100ms
         }
 
@@ -271,6 +313,12 @@ class OdisCrawlCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * Parses a list of IDs, supporting comma-separated values.
+     * 
+     * @param array $ids
+     * @return array
+     */
     private function parseIds(array $ids): array
     {
         $result = [];
