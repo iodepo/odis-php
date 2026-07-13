@@ -29,8 +29,12 @@ class OdisClearStatsCommand extends Command
 
     protected function configure(): void
     {
-        $this
-            ->addOption('all', 'a', InputOption::VALUE_NONE, 'Clear both crawl statistics and Elasticsearch index');
+        $this->addOption(
+            'all',
+            'a',
+            InputOption::VALUE_NONE,
+            'Clear both crawl statistics and Elasticsearch index'
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

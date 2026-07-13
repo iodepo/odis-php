@@ -26,8 +26,11 @@ class OdisCrawlCommand extends Command
     private EntityManagerInterface $entityManager;
     private Client $esClient;
 
-    public function __construct(OdisCrawler $crawler, EntityManagerInterface $entityManager, Client $esClient)
-    {
+    public function __construct(
+        OdisCrawler $crawler,
+        EntityManagerInterface $entityManager,
+        Client $esClient
+    ) {
         parent::__construct();
         $this->crawler = $crawler;
         $this->entityManager = $entityManager;
@@ -37,12 +40,43 @@ class OdisCrawlCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('ids', InputArgument::IS_ARRAY, 'Optional list of ODISCat IDs to crawl')
-            ->addOption('skip', 's', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'List of ODISCat IDs to skip')
-            ->addOption('parallel', 'p', InputOption::VALUE_NONE, 'Run crawl in parallel sessions for each datasource')
-            ->addOption('concurrency', 'c', InputOption::VALUE_REQUIRED, 'Max concurrent processes for parallel crawl', 5)
-            ->addOption('limit', 'l', InputOption::VALUE_REQUIRED, 'Limit the number of records crawled per datasource', 0)
-            ->addOption('clear-index', null, InputOption::VALUE_NONE, 'Clear the Elasticsearch index before starting the crawl');
+            ->addArgument(
+                'ids',
+                InputArgument::IS_ARRAY,
+                'Optional list of ODISCat IDs to crawl'
+            )
+            ->addOption(
+                'skip',
+                's',
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'List of ODISCat IDs to skip'
+            )
+            ->addOption(
+                'parallel',
+                'p',
+                InputOption::VALUE_NONE,
+                'Run crawl in parallel sessions for each datasource'
+            )
+            ->addOption(
+                'concurrency',
+                'c',
+                InputOption::VALUE_REQUIRED,
+                'Max concurrent processes for parallel crawl',
+                5
+            )
+            ->addOption(
+                'limit',
+                'l',
+                InputOption::VALUE_REQUIRED,
+                'Limit the number of records crawled per datasource',
+                0
+            )
+            ->addOption(
+                'clear-index',
+                null,
+                InputOption::VALUE_NONE,
+                'Clear the Elasticsearch index before starting the crawl'
+            );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -106,8 +140,12 @@ class OdisCrawlCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function executeParallel(InputInterface $input, OutputInterface $output, array $ids, array $skipIds): int
-    {
+    private function executeParallel(
+        InputInterface $input,
+        OutputInterface $output,
+        array $ids,
+        array $skipIds
+    ): int {
         $io = new SymfonyStyle($input, $output);
         $concurrency = (int) $input->getOption('concurrency');
         $limit = (int) $input->getOption('limit');
@@ -132,7 +170,13 @@ class OdisCrawlCommand extends Command
             return Command::SUCCESS;
         }
 
-        $io->note(sprintf('Starting parallel crawl for %d datasource(s) with concurrency %d', $total, $concurrency));
+        $io->note(
+            sprintf(
+                'Starting parallel crawl for %d datasource(s) with concurrency %d',
+                $total,
+                $concurrency
+            )
+        );
 
         $masterStat = new CrawlStat();
         $masterStat->setType('parallel_master');
