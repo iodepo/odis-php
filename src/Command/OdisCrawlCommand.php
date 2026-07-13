@@ -1,5 +1,35 @@
 <?php
 
+/**
+ * OdisCrawlCommand is responsible for crawling ODIS (Ocean Data Information System) metadata
+ * from various sources and indexing it into Elasticsearch for searchability.
+ *
+ * @author Arno Lambert <a.lambert@unesco.org>
+ * @author Junie Pro
+ * @since 2026-06-22
+ * @version 1.0.0
+ *
+ * Usage Examples:
+ *
+ * 1. Crawl all data sources:
+ *    php bin/console app:odis:crawl
+ *
+ * 2. Crawl specific data sources by ID:
+ *    php bin/console app:odis:crawl id1 id2
+ *
+ * 3. Crawl all except specific IDs:
+ *    php bin/console app:odis:crawl --skip id3 --skip id4
+ *
+ * 4. Run crawl in parallel with a specific concurrency:
+ *    php bin/console app:odis:crawl --parallel --concurrency 10
+ *
+ * 5. Limit the number of records per data source:
+ *    php bin/console app:odis:crawl --limit 100
+ *
+ * 6. Clear the Elasticsearch index before crawling:
+ *    php bin/console app:odis:crawl --clear-index
+ */
+
 namespace App\Command;
 
 use App\Service\OdisCrawler;
