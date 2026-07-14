@@ -118,6 +118,12 @@ class OdisCrawlCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Clear the Elasticsearch index before starting the crawl'
+            )
+            ->addOption(
+                'dry-run',
+                'd',
+                InputOption::VALUE_NONE,
+                'Check connections and finding JSON-LD without indexing'
             );
     }
 
@@ -149,6 +155,14 @@ class OdisCrawlCommand extends Command
         }
         $this->crawler->setCommandLine($commandLine);
 
+        // Enable dry-run mode if requested
+        if ($input->getOption('dry-run')) {
+            $this->crawler->setDryRun(true);
+            // Always set output for dry-run to ensure visibility of progress
+            $this->crawler->setOutput($output);
+            $io->note('Dry-run mode enabled: no indexing will be performed.');
+        }
+
         // Increase verbosity of the crawler if the command is run with -v, -vv, or -vvv
         if ($output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
             $this->crawler->setOutput($output);
@@ -161,31 +175,33 @@ class OdisCrawlCommand extends Command
         }
 
         // Pre-flight: ensure Elasticsearch is reachable before any ES operation
-        try {
-            $response = $this->esClient->info();
-            if ($response->getStatusCode() !== 200) {
-                $io->error('Elasticsearch returned an unexpected status code: ' . $response->getStatusCode());
+        if (!$input->getOption('dry-run')) {
+            try {
+                $response = $this->esClient->info();
+                if ($response->getStatusCode() !== 200) {
+                    $io->error('Elasticsearch returned an unexpected status code: ' . $response->getStatusCode());
+                    return Command::FAILURE;
+                }
+            } catch (ClientResponseException $e) {
+                $io->error('Elasticsearch error: ' . $e->getMessage());
+                if ($e->getResponse()->getStatusCode() === 401) {
+                    $io->writeln('Hint: Authentication failed. Check ELASTICSEARCH_USER and ELASTICSEARCH_PASSWORD in your .env.local.');
+                } else {
+                    $io->writeln('Hint: Check ELASTICSEARCH_URL and that the service is up.');
+                }
+                return Command::FAILURE;
+            }  catch (NoNodeAvailableException|ServerResponseException $e) {
+                $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
+                $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
+                return Command::FAILURE;
+            } catch (\Throwable $e) {
+                $io->error('Failed to contact Elasticsearch: ' . $e->getMessage());
                 return Command::FAILURE;
             }
-        } catch (ClientResponseException $e) {
-            $io->error('Elasticsearch error: ' . $e->getMessage());
-            if ($e->getResponse()->getStatusCode() === 401) {
-                $io->writeln('Hint: Authentication failed. Check ELASTICSEARCH_USER and ELASTICSEARCH_PASSWORD in your .env.local.');
-            } else {
-                $io->writeln('Hint: Check ELASTICSEARCH_URL and that the service is up.');
-            }
-            return Command::FAILURE;
-        }  catch (NoNodeAvailableException|ServerResponseException $e) {
-            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
-            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
-            return Command::FAILURE;
-        } catch (\Throwable $e) {
-            $io->error('Failed to contact Elasticsearch: ' . $e->getMessage());
-            return Command::FAILURE;
         }
 
         // Optional: wipe the Elasticsearch index before starting if requested
-        if ($input->getOption('clear-index')) {
+        if ($input->getOption('clear-index') && !$input->getOption('dry-run')) {
             $io->warning('Clearing Elasticsearch index...');
             try {
                 $this->crawler->clearIndex();

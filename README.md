@@ -110,6 +110,9 @@ The application provides a command-line interface for crawling and indexing meta
 # Complete crawl
 php bin/console app:odis:crawl
 
+# Dry run (check connections and JSON-LD presence without indexing)
+php bin/console app:odis:crawl --dry-run
+
 # Parallel crawl for better performance
 php bin/console app:odis:crawl --parallel --concurrency 5
 

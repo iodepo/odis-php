@@ -54,6 +54,10 @@ class OdisCrawler
     private string $commandLine = '';
     private RobotsTxtManager $robotsManager;
     private array $visitedSitemaps = [];
+    private bool $dryRun = false;
+    private bool $foundInCurrentDatasource = false;
+    private int $consecutiveFailuresInSitemap = 0;
+    private bool $skipRemainingInSitemap = false;
 
     /**
      * OdisCrawler constructor.
@@ -116,6 +120,16 @@ class OdisCrawler
     public function setLimit(int $limit): void
     {
         $this->limit = $limit;
+    }
+
+    /**
+     * Sets the dry run mode.
+     *
+     * @param bool $dryRun
+     */
+    public function setDryRun(bool $dryRun): void
+    {
+        $this->dryRun = $dryRun;
     }
 
     /**
@@ -189,7 +203,9 @@ class OdisCrawler
 
         try {
             // Ensure Elasticsearch index is ready
-            $this->ensureIndexExists();
+            if (!$this->dryRun) {
+                $this->ensureIndexExists();
+            }
         } catch (\Exception $e) {
             $message = "Elasticsearch connection failed: " . $e->getMessage();
             $this->log($message, 'error');
@@ -550,6 +566,7 @@ class OdisCrawler
     private function processDatasource(string $id, ?array $record = null): void
     {
         $this->processedInCurrentDatasource = 0;
+        $this->foundInCurrentDatasource = false;
 
         // Reset memory-intensive state for each datasource to prevent leaks and OOM on large crawls
         if (count($this->errorDetails) > $this->maxStoredErrors) {
@@ -569,6 +586,12 @@ class OdisCrawler
         
         $this->currentDatasourceId = $id;
         
+        $this->log("Processing Datasource ID $id", 'info');
+        
+        if ($this->dryRun) {
+            $this->log("DRY RUN: Testing connection for datasource ID $id", 'warning');
+        }
+        
         if ($this->currentStat && $record && isset($record['ds_name_english'])) {
             $this->currentStat->addProcessedEntry((int)$id, $record['ds_name_english']);
         }
@@ -582,10 +605,14 @@ class OdisCrawler
         // If we don't have the architecture URL, we try to scrape it from the ODIS view page
         if (!$archUrl) {
             $url = $this->viewBaseUrl . $id;
-            $this->log("Processing ID $id from $url (no pre-fetched record)", 'debug');
+            $this->log("Fetching ODIS-Arch URL for ID $id from $url", 'info');
 
             try {
-                $response = $this->httpClient->get($url);
+                $options = [
+                    'connect_timeout' => 10,
+                    'timeout' => 30
+                ];
+                $response = $this->httpClient->get($url, $options);
                 $html = (string) $response->getBody();
                 $crawler = new Crawler($html);
 
@@ -634,8 +661,16 @@ class OdisCrawler
                     $this->fetchAndIndexJson($archUrl);
                 }
             }
+            
+            if ($this->dryRun) {
+                if ($this->foundInCurrentDatasource) {
+                    $this->log("DRY RUN SUCCESS: Datasource $id is reachable and contains valid JSON-LD.", 'warning');
+                } else {
+                    $this->log("DRY RUN FAILED: Connection to datasource $id ($archUrl) established, but NO valid JSON-LD was found.", 'error');
+                }
+            }
         } else {
-            $this->log("No ODIS-Arch URL found for ID $id", 'debug');
+            $this->log("DRY RUN FAILED: No ODIS-Arch URL found for datasource ID $id. Check the ODIS view page.", 'error');
         }
     }
 
@@ -646,6 +681,16 @@ class OdisCrawler
      */
     private function processSitemap(string $sitemapUrl): void
     {
+        $this->consecutiveFailuresInSitemap = 0;
+        $this->skipRemainingInSitemap = false;
+
+        // Stop if we already found something in dry run mode
+        if ($this->dryRun && $this->foundInCurrentDatasource) {
+            return;
+        }
+
+        $this->log("Fetching/Parsing sitemap: $sitemapUrl (Datasource ID: {$this->currentDatasourceId})", 'warning');
+        
         // Prevent infinite loops in case of circular sitemap references
         if (in_array($sitemapUrl, $this->visitedSitemaps)) {
             $this->log("Sitemap already visited: $sitemapUrl. Skipping to prevent infinite loop.", 'warning');
@@ -665,13 +710,17 @@ class OdisCrawler
         $this->log("Parsing sitemap: $sitemapUrl", 'debug');
         try {
             try {
-                $response = $this->httpClient->get($sitemapUrl);
+                $options = [
+                    'connect_timeout' => 10,
+                    'timeout' => 30
+                ];
+                $response = $this->httpClient->get($sitemapUrl, $options);
             } catch (\GuzzleHttp\Exception\ClientException $ce) {
                 // Special handling for common GeoNetwork sitemap location misconfigurations
                 if ($ce->getResponse()->getStatusCode() === 404 && str_ends_with($sitemapUrl, '/assets/sitemap.xml')) {
                     $fallbackUrl = str_replace('/assets/sitemap.xml', '/sitemap.xml', $sitemapUrl);
                     $this->log("Sitemap 404 at $sitemapUrl. Attempting fallback: $fallbackUrl", 'warning');
-                    $response = $this->httpClient->get($fallbackUrl);
+                    $response = $this->httpClient->get($fallbackUrl, $options);
                     $sitemapUrl = $fallbackUrl; // Update URL for logging/error reporting
                 } else {
                     throw $ce;
@@ -729,9 +778,20 @@ class OdisCrawler
                     $this->log("Limit of {$this->limit} reached for datasource {$this->currentDatasourceId}. Skipping remaining sitemap URLs.", 'info');
                     break;
                 }
+                
+                // Stop if we found something in dry run mode
+                if ($this->dryRun && $this->foundInCurrentDatasource) {
+                    break;
+                }
+                
                 $url = trim((string) $loc);
                 if (empty($url)) continue;
                 $this->fetchAndIndexJson($url);
+
+                if ($this->skipRemainingInSitemap) {
+                    $this->log("Stopping sitemap processing for $sitemapUrl due to 5 consecutive failures.", 'error');
+                    break;
+                }
                 
                 // Explicitly cleanup memory in sitemap loop to prevent OOM
                 gc_collect_cycles();
@@ -904,6 +964,11 @@ class OdisCrawler
      */
     public function fetchAndIndexJson(string $url): void
     {
+        // Stop if we already found something in dry run mode
+        if ($this->dryRun && $this->foundInCurrentDatasource) {
+            return;
+        }
+
         // Respect robots.txt
         if (!$this->robotsManager->isAllowed($url)) {
             $this->log("URL $url is disallowed by robots.txt", 'warning');
@@ -919,16 +984,21 @@ class OdisCrawler
             $this->currentStat->incrementEntryRecordsFound();
         }
         
-        $this->log("Fetching data from $url", 'debug');
+        $this->log("Checking URL: $url (Datasource ID: {$this->currentDatasourceId})", 'warning');
         try {
             // Use streaming to avoid loading massive bodies into memory all at once
-            $response = $this->httpClient->get($url, ['stream' => true]);
+            $options = [
+                'stream' => true,
+                'connect_timeout' => 10,
+                'timeout' => 30
+            ];
+            $response = $this->httpClient->get($url, $options);
             $bodyStream = $response->getBody();
             
             // Check content length if provided by the server
             $contentLength = (int) $response->getHeaderLine('Content-Length');
             if ($contentLength > 50 * 1024 * 1024) {
-                $this->log("Large response detected ($contentLength bytes). Processing with caution.", 'warning');
+                $this->log("Large response detected ($contentLength bytes) from $url. Processing with caution.", 'warning');
             }
 
             $contentType = $response->getHeaderLine('Content-Type');
@@ -999,6 +1069,8 @@ class OdisCrawler
             
             // Process the extracted data (expand graphs/lists if necessary)
             if ($data) {
+                $this->consecutiveFailuresInSitemap = 0;
+                $this->log("SUCCESS: Found valid data at $url (Datasource ID: {$this->currentDatasourceId})", 'info');
                 // Determine if this is a SiteGraph or a collection of items
                 $isTopLevelList = is_array($data) && array_is_list($data);
                 $isGraph = (
@@ -1120,6 +1192,14 @@ class OdisCrawler
                         }
                         $itemId = $itemId ?: md5($url . $index);
 
+                        if ($this->dryRun) {
+                            $this->log("DRY RUN SUCCESS: Found valid JSON-LD item at $url (Datasource ID: {$this->currentDatasourceId}, Item ID: " . ($itemId ?: 'unknown') . ").", 'warning');
+                            $this->foundInCurrentDatasource = true;
+                            $this->validJsonLdsCount++;
+                            unset($graph);
+                            return;
+                        }
+
                     $body = [
                         'url' => $url,
                         'data' => $item,
@@ -1238,6 +1318,13 @@ class OdisCrawler
                     $normalizedData = $this->normalizeDataForSafeIndexing($data);
                     
                     $type = $normalizedData['@type']['value'] ?? $normalizedData['@type'] ?? '';
+
+                    if ($this->dryRun) {
+                        $this->log("DRY RUN SUCCESS: Found valid JSON-LD at $url (Datasource ID: {$this->currentDatasourceId}, Type: " . (is_array($type) ? implode(',', $type) : $type) . ").", 'warning');
+                        $this->foundInCurrentDatasource = true;
+                        $this->validJsonLdsCount++;
+                        return;
+                    }
 
                     // Skip BreadcrumbList
                     if (
@@ -1376,6 +1463,10 @@ class OdisCrawler
                     }
                 }
             } else {
+                $this->consecutiveFailuresInSitemap++;
+                if ($this->consecutiveFailuresInSitemap >= 5) {
+                    $this->skipRemainingInSitemap = true;
+                }
                 $this->log("No JSON-LD found at $url. Content-Type: $contentType. Body starts with: " . substr($body, 0, 100), 'warning');
                 $this->invalidJsonLdsCount++;
                 $this->errorDetails[] = [
@@ -1396,6 +1487,11 @@ class OdisCrawler
             // Free body string memory as soon as possible
             unset($body);
         } catch (\Exception $e) {
+            $this->consecutiveFailuresInSitemap++;
+            if ($this->consecutiveFailuresInSitemap >= 5) {
+                $this->skipRemainingInSitemap = true;
+            }
+
             $message = $e->getMessage();
             $this->log("Error fetching/indexing data from $url: " . $message, 'error');
             $this->invalidJsonLdsCount++;
