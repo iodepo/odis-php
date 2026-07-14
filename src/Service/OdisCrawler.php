@@ -13,6 +13,7 @@ namespace App\Service;
 use Elastic\Elasticsearch\ClientInterface;
 use Elastic\Transport\Exception\NoNodeAvailableException;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Component\DomCrawler\Crawler;
 use Psr\Log\LoggerInterface;
 use App\Entity\CrawlStat;
@@ -894,11 +895,12 @@ class OdisCrawler
 
     /**
      * Fetches a URL and indexes the JSON-LD data found within.
-     * 
+     *
      * Handles both direct JSON responses and HTML pages containing JSON-LD scripts.
      * Supports SiteGraphs and top-level JSON arrays by expanding them.
      *
      * @param string $url The URL to fetch and index
+     * @throws GuzzleException
      */
     public function fetchAndIndexJson(string $url): void
     {
@@ -937,8 +939,11 @@ class OdisCrawler
             $data = null;
             $this->log("Processing body with content type: $contentType", 'debug');
             
-            // Case 1: JSON or JSON-LD response
-            if (str_contains($contentType, 'application/json') || str_contains($contentType, 'application/ld+json')) {
+            if (
+                str_contains($contentType, 'application/json')
+                || str_contains($contentType, 'application/ld+json')
+            ) {
+                // Case 1: JSON or JSON-LD response
                 $body = trim($body);
                 // Remove UTF-8 BOM (Byte Order Mark) if present
                 if (str_starts_with($body, "\xEF\xBB\xBF")) {
@@ -979,54 +984,83 @@ class OdisCrawler
                         }
                     }
                 }
-            } 
-            // Case 2: HTML response
-            elseif (str_contains($contentType, 'text/html')) {
+            } elseif (str_contains($contentType, 'text/html')) {
+                // Case 2: HTML response
                 $data = $this->extractJsonLdFromHtml($body);
-            } 
-            // Case 3: Unknown content type, attempt both
-            else {
+            } else {
+                // Case 3: Unknown content type, attempt both
                 $data = json_decode($body, true);
                 if (!$data) {
                     $data = $this->extractJsonLdFromHtml($body);
                 }
-                unset($body); // Free memory immediately
+                // Free memory immediately
+                unset($body);
             }
             
             // Process the extracted data (expand graphs/lists if necessary)
             if ($data) {
                 // Determine if this is a SiteGraph or a collection of items
-            $isTopLevelList = is_array($data) && array_is_list($data);
-            $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || 
-                       (isset($data['itemListElement']) && is_array($data['itemListElement'])) || 
-                       (isset($data['dataset']) && is_array($data['dataset'])) ||
-                       $isTopLevelList;
-            
-            // Special case for ODIS sitegraphs that might use different wrapping keys
-            if (!$isGraph && isset($data['graph']) && is_array($data['graph'])) {
-                $isGraph = true;
-                $graph = $data['graph'];
-            } elseif (!$isGraph && str_ends_with($url, '.json') && count($data) > 0 && !isset($data['@type'])) {
-                // If it's a large associative array with many keys and no @type, it's likely a collection.
-                $isGraph = true;
-                $graph = $data;
-            } elseif ($isGraph) {
-                if ($isTopLevelList) {
+                $isTopLevelList = is_array($data) && array_is_list($data);
+                $isGraph = (
+                        isset($data['@graph'])
+                        && is_array($data['@graph'])
+                    )
+                    || (
+                        isset($data['itemListElement'])
+                        && is_array($data['itemListElement'])
+                    )
+                    || (
+                        isset($data['dataset'])
+                        && is_array($data['dataset'])
+                    )
+                    || $isTopLevelList;
+
+                // Special case for ODIS site graphs that might use different wrapping keys
+                if (
+                    !$isGraph
+                    && isset($data['graph'])
+                    && is_array($data['graph'])
+                ) {
+                    $isGraph = true;
+                    $graph = $data['graph'];
+                } elseif (
+                    !$isGraph
+                    && str_ends_with($url, '.json')
+                    && count($data) > 0
+                    && !isset($data['@type'])
+                ) {
+                    // If it's a large associative array with many keys and no @type, it's likely a collection.
+                    $isGraph = true;
                     $graph = $data;
-                } elseif (isset($data['@graph']) && is_array($data['@graph'])) {
-                    $graph = $data['@graph'];
-                } elseif (isset($data['itemListElement']) && is_array($data['itemListElement'])) {
-                    $graph = $data['itemListElement'];
-                } elseif (isset($data['dataset']) && is_array($data['dataset'])) {
-                    $graph = $data['dataset'];
+                } elseif ($isGraph) {
+                    if ($isTopLevelList) {
+                        $graph = $data;
+                    } elseif (
+                        isset($data['@graph'])
+                        && is_array($data['@graph'])
+                    ) {
+                        $graph = $data['@graph'];
+                    } elseif (
+                        isset($data['itemListElement'])
+                        && is_array($data['itemListElement'])
+                    ) {
+                        $graph = $data['itemListElement'];
+                    } elseif (
+                        isset($data['dataset'])
+                        && is_array($data['dataset'])
+                    ) {
+                        $graph = $data['dataset'];
+                    }
                 }
-            }
 
                 if ($isGraph) {
                     $this->log("Graph detected at $url (" . count($graph) . " items). Indexing individually.", 'info');
                     unset($data); // Free parent immediately
                     foreach ($graph as $index => $item) {
-                        if ($this->limit > 0 && $this->validJsonLdsCount >= $this->limit) {
+                        if (
+                            $this->limit > 0
+                            && $this->validJsonLdsCount >= $this->limit
+                        ) {
                             break;
                         }
                         
@@ -1052,13 +1086,19 @@ class OdisCrawler
                         $type = $item['@type']['value'] ?? $item['@type'] ?? '';
 
                         // Skip BreadcrumbList as it's not a valid ODIS type for indexing
-                        if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                        if (
+                            $type === 'BreadcrumbList'
+                            || $type === 'schema:BreadcrumbList'
+                        ) {
                             $this->log("Skipping BreadcrumbList at $url", 'debug');
                             continue;
                         }
 
                         // Handle ListItem: extract the actual 'item' content if present
-                        if ($type === 'ListItem' || $type === 'schema:ListItem') {
+                        if (
+                            $type === 'ListItem'
+                            || $type === 'schema:ListItem'
+                        ) {
                             if (isset($item['item']) && is_array($item['item'])) {
                                 $item = $item['item'];
                                 $type = $item['@type']['value'] ?? $item['@type'] ?? '';
@@ -1066,7 +1106,10 @@ class OdisCrawler
                         }
 
                         // Re-check type after possible ListItem unwrap
-                        if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                        if (
+                            $type === 'BreadcrumbList'
+                            || $type === 'schema:BreadcrumbList'
+                        ) {
                             $this->log("Skipping BreadcrumbList (unwrapped) at $url", 'debug');
                             continue;
                         }
@@ -1094,7 +1137,10 @@ class OdisCrawler
 
                     foreach ($rootFields as $field) {
                             if (isset($item[$field])) {
-                                if (is_array($item[$field]) && isset($item[$field]['value'])) {
+                                if (
+                                    is_array($item[$field])
+                                    && isset($item[$field]['value'])
+                                ) {
                                     $val = $item[$field]['value'];
                                 } else {
                                     $val = $item[$field];
@@ -1111,7 +1157,10 @@ class OdisCrawler
                                     // If it's still an array after trying to extract URL, stringify it
                                     if (is_array($val)) {
                                         if (array_is_list($val)) {
-                                            if ($field === '@type' || $field === 'schema:@type') {
+                                            if (
+                                                $field === '@type'
+                                                || $field === 'schema:@type'
+                                            ) {
                                                 // Keep as array for @type to allow multiple types in Elasticsearch
                                                 $val = array_map(function($v) {
                                                     if (is_array($v) && isset($v['name'])) {
@@ -1136,14 +1185,23 @@ class OdisCrawler
                                     }
                                 }
 
-                                if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
+                                if (
+                                    (
+                                        $field === 'keywords'
+                                        || $field === 'schema:keywords'
+                                    )
+                                    && is_array($val)
+                                ) {
                                     $val = implode(', ', array_map(function($k) {
                                         return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
                                     }, $val));
                                 }
                             
                                 // If title was found, map it to name for consistent indexing
-                                if ($field === 'title' || $field === 'schema:title') {
+                                if (
+                                    $field === 'title'
+                                    || $field === 'schema:title'
+                                ) {
                                     $body['name'] = $val;
                                 }
                             
@@ -1182,13 +1240,22 @@ class OdisCrawler
                     $type = $normalizedData['@type']['value'] ?? $normalizedData['@type'] ?? '';
 
                     // Skip BreadcrumbList
-                    if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                    if (
+                        $type === 'BreadcrumbList'
+                        || $type === 'schema:BreadcrumbList'
+                    ) {
                         $this->log("Skipping BreadcrumbList at $url", 'debug');
                         return;
                     }
 
                     // Special case for ItemList and ListItem: unwrap if they contain an 'item'
-                    if (($type === 'ListItem' || $type === 'schema:ListItem') && isset($normalizedData['item'])) {
+                    if (
+                        (
+                            $type === 'ListItem'
+                            || $type === 'schema:ListItem'
+                        )
+                        && isset($normalizedData['item'])
+                    ) {
                         $innerItem = $normalizedData['item'];
                         foreach ($normalizedData as $k => $v) {
                             if ($k !== 'item' && !isset($innerItem[$k])) {
@@ -1200,7 +1267,10 @@ class OdisCrawler
                     }
 
                     // Re-check type after possible ListItem unwrap
-                    if ($type === 'BreadcrumbList' || $type === 'schema:BreadcrumbList') {
+                    if (
+                        $type === 'BreadcrumbList'
+                        || $type === 'schema:BreadcrumbList'
+                    ) {
                         $this->log("Skipping BreadcrumbList (unwrapped) at $url", 'debug');
                         return;
                     }
@@ -1227,7 +1297,10 @@ class OdisCrawler
                     ];
                     foreach ($rootFields as $field) {
                         if (isset($normalizedData[$field])) {
-                            if (is_array($normalizedData[$field]) && isset($normalizedData[$field]['value'])) {
+                            if (
+                                is_array($normalizedData[$field])
+                                && isset($normalizedData[$field]['value'])
+                            ) {
                                 $val = $normalizedData[$field]['value'];
                             } else {
                                 $val = $normalizedData[$field];
@@ -1244,7 +1317,10 @@ class OdisCrawler
                                 // If it's still an array after trying to extract URL, stringify it
                                 if (is_array($val)) {
                                     if (array_is_list($val)) {
-                                        if ($field === '@type' || $field === 'schema:@type') {
+                                        if (
+                                            $field === '@type'
+                                            || $field === 'schema:@type'
+                                        ) {
                                             // Keep as array for @type to allow multiple types in Elasticsearch
                                             $val = array_map(function($v) {
                                                 if (is_array($v) && isset($v['name'])) {
@@ -1269,7 +1345,13 @@ class OdisCrawler
                                 }
                             }
 
-                            if (($field === 'keywords' || $field === 'schema:keywords') && is_array($val)) {
+                            if (
+                                (
+                                    $field === 'keywords'
+                                    || $field === 'schema:keywords'
+                                )
+                                && is_array($val)
+                            ) {
                                 $val = implode(', ', array_map(function($k) {
                                     return is_array($k) ? ($k['value'] ?? json_encode($k)) : $k;
                                 }, $val));
@@ -1323,7 +1405,10 @@ class OdisCrawler
             $fullMessageWithSolution = "$shortMessage. $solution";
             
             // Categorize errors
-            if (str_contains($message, '400 Bad Request') || str_contains($message, 'document_parsing_exception')) {
+            if (
+                str_contains($message, '400 Bad Request')
+                || str_contains($message, 'document_parsing_exception')
+            ) {
                 // This is a data/mapping error (Invalid Format)
                 $this->errorDetails[] = [
                     'id' => $this->currentDatasourceId,
@@ -1378,12 +1463,22 @@ class OdisCrawler
             if ($jsonLdScripts->count() > 0) {
                 $jsonLdScripts->each(function (Crawler $node) use (&$results) {
                     $json = trim($node->getNode(0)->textContent);
-                    if (empty($json)) return;
+                    if (empty($json)) {
+                        return;
+                    }
                     
                     $decoded = json_decode($json, true);
-                    if ($decoded === null && !empty($json)) {
+                    if ($decoded === null
+                        && !empty($json)
+                    ) {
                         // Fallback: try decoding HTML entities and removing control characters
-                        $cleaned = html_entity_decode(preg_replace('/[\x00-\x1F\x7F]/', ' ', $json));
+                        $cleaned = html_entity_decode(
+                            preg_replace(
+                                '/[\x00-\x1F\x7F]/',
+                                ' ',
+                                $json
+                            )
+                        );
                         $decoded = json_decode($cleaned, true);
                         
                         if ($decoded === null) {
@@ -1391,12 +1486,16 @@ class OdisCrawler
                             // e.g. "alternateTitle": "Gas pipelines ... "as built" in ..."
                             // We look for " followed by characters then " then characters then " where it's part of a value
                             // This is risky but helps with broken source data
-                            $cleanedAggressive = preg_replace_callback('/(": ")(.*?)("(?:\s*)[,}\]])/s', function($matches) {
-                                $value = $matches[2];
-                                // Escape internal quotes in the value
-                                $value = str_replace('"', '\"', $value);
-                                return $matches[1] . $value . $matches[3];
-                            }, $cleaned);
+                            $cleanedAggressive = preg_replace_callback(
+                                '/(": ")(.*?)("(?:\s*)[,}\]])/s',
+                                function($matches) {
+                                    $value = $matches[2];
+                                    // Escape internal quotes in the value
+                                    $value = str_replace('"', '\"', $value);
+                                    return $matches[1] . $value . $matches[3];
+                                },
+                                $cleaned
+                            );
                             $decoded = json_decode($cleanedAggressive, true);
                         }
                     }
@@ -1406,14 +1505,21 @@ class OdisCrawler
                         $solution = $this->getSolutionForError($jsonError);
                         $this->log("Failed to decode JSON-LD snippet: $jsonError. $solution (first 100 chars: " . substr($json, 0, 100) . ")", 'warning');
                     }
-                    unset($json); // Clear large string
+                    // Clear large string from memory as soon as possible
+                    unset($json);
                     
                     if ($decoded) {
-                        if (isset($decoded['@graph']) && is_array($decoded['@graph'])) {
+                        if (isset($decoded['@graph'])
+                            && is_array($decoded['@graph'])
+                        ) {
                             foreach ($decoded['@graph'] as $item) {
                                 $results[] = $item;
                             }
-                        } elseif (isset($decoded['@type']) && (is_string($decoded['@type']) ? $decoded['@type'] === 'ItemList' : in_array('ItemList', $decoded['@type'])) && isset($decoded['itemListElement'])) {
+                        } elseif (
+                            isset($decoded['@type'])
+                            && (is_string($decoded['@type']) ? $decoded['@type'] === 'ItemList' : in_array('ItemList', $decoded['@type']))
+                            && isset($decoded['itemListElement'])
+                        ) {
                             foreach ($decoded['itemListElement'] as $element) {
                                 if (isset($element['item'])) {
                                     $results[] = $element['item'];
@@ -1426,7 +1532,10 @@ class OdisCrawler
                             foreach ($parts as $part) {
                                 $results[] = $part;
                             }
-                        } elseif (is_array($decoded) && array_is_list($decoded)) {
+                        } elseif (
+                            is_array($decoded)
+                            && array_is_list($decoded)
+                        ) {
                             foreach ($decoded as $item) {
                                 $results[] = $item;
                             }
