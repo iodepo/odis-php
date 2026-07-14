@@ -9,6 +9,13 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class DashboardApiController extends AbstractController
 {
+    private string $esIndex;
+
+    public function __construct(string $esIndex)
+    {
+        $this->esIndex = $esIndex;
+    }
+
     #[Route('/api/dashboard/status', name: 'app_api_dashboard_status')]
     public function status(CrawlStatRepository $repository, \Elastic\Elasticsearch\Client $esClient): JsonResponse
     {
@@ -27,7 +34,7 @@ class DashboardApiController extends AbstractController
         $totalValid = 0;
         $esError = null;
         try {
-            $response = $esClient->count(['index' => 'odis_metadata']);
+            $response = $esClient->count(['index' => $this->esIndex]);
             $totalValid = $response['count'];
         } catch (\Exception $e) {
             $esError = 'Elasticsearch unavailable';

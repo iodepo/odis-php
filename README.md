@@ -52,6 +52,7 @@ DATABASE_URL="sqlite:///%kernel.project_dir%/var/data.db"
 ELASTICSEARCH_URL=https://localhost:9200
 ELASTICSEARCH_USER=your_username
 ELASTICSEARCH_PASSWORD=your_password
+ELASTICSEARCH_INDEX=odis_metadata_v2
 ```
 
 ### 4. Database Setup
@@ -85,7 +86,7 @@ curl -k -u "$ELASTICSEARCH_USER:$ELASTICSEARCH_PASSWORD" "$ELASTICSEARCH_URL"
 # Should return a JSON with "tagline": "You Know, for Search"
 ```
 
-The application will automatically create the required index (`odis_metadata`) and mappings when you first run the crawler if you haven't initialized it yet.
+The application will automatically create the required Elasticsearch index and mappings when you first run the crawler if you haven't initialized it yet. The index name is defined by the `ELASTICSEARCH_INDEX` setting in your `.env` (default: `odis_metadata_v2`).
 
 **Important**:
 
@@ -155,6 +156,7 @@ Configure your environment variables in `.env` or `.env.local`:
 - `ELASTICSEARCH_URL`: URL of your Elasticsearch instance
 - `ELASTICSEARCH_USER`: Elasticsearch username
 - `ELASTICSEARCH_PASSWORD`: Elasticsearch password
+- `ELASTICSEARCH_INDEX`: Name of the Elasticsearch index
 - `DATABASE_URL`: Connection string for the PostgreSQL database
 
 ## Troubleshooting
@@ -177,7 +179,7 @@ php bin/console debug:dotenv
 ```
 Verify the exact values Symfony is using for Elasticsearch:
 ```bash
-php bin/console debug:container --env-vars | grep ELASTICSEARCH_
+php bin/console debug:container --env-vars | grep ELASTICSEARCH
 ```
 
 #### Step 3: Check for Common Issues

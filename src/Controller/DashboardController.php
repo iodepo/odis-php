@@ -10,6 +10,13 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class DashboardController extends AbstractController
 {
+    private string $esIndex;
+
+    public function __construct(string $esIndex)
+    {
+        $this->esIndex = $esIndex;
+    }
+
     #[Route('/dashboard', name: 'app_dashboard')]
     public function index(CrawlStatRepository $repository, \Elastic\Elasticsearch\Client $esClient): Response
     {
@@ -28,7 +35,7 @@ class DashboardController extends AbstractController
         $totalValid = 0;
         $esError = null;
         try {
-            $response = $esClient->count(['index' => 'odis_metadata']);
+            $response = $esClient->count(['index' => $this->esIndex]);
             $totalValid = $response['count'];
         } catch (NoNodeAvailableException $e) {
             $esError = 'Elasticsearch is unreachable. Please check your ELASTICSEARCH_URL configuration and ensure the service is running.';

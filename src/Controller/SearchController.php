@@ -12,11 +12,12 @@ use Symfony\Component\Routing\Attribute\Route;
 class SearchController extends AbstractController
 {
     private ClientInterface $esClient;
-    private string $esIndex = 'odis_metadata';
+    private string $esIndex;
 
-    public function __construct(ClientInterface $esClient)
+    public function __construct(ClientInterface $esClient, string $esIndex)
     {
         $this->esClient = $esClient;
+        $this->esIndex = $esIndex;
     }
 
     #[Route('/search', name: 'app_search')]

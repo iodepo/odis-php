@@ -16,7 +16,7 @@ class OdisCrawler
 {
     private GuzzleClient $httpClient;
     private ClientInterface $esClient;
-    private string $esIndex = 'odis_metadata';
+    private string $esIndex;
     private string $recordsApiUrl = 'https://catalogue.odis.org/odis-arch-records';
     private string $viewBaseUrl = 'https://catalogue.odis.org/view/';
     private LoggerInterface $logger;
@@ -44,12 +44,14 @@ class OdisCrawler
         LoggerInterface $logger,
         EntityManagerInterface $entityManager,
         RobotsTxtManager $robotsManager,
+        string $esIndex,
         ?GuzzleClient $httpClient = null
     ) {
         $this->esClient = $esClient;
         $this->logger = $logger;
         $this->entityManager = $entityManager;
         $this->robotsManager = $robotsManager;
+        $this->esIndex = $esIndex;
         $this->httpClient = $httpClient ?: new GuzzleClient([
             'timeout'  => 15.0,
             'verify' => false,
@@ -996,7 +998,7 @@ class OdisCrawler
                         }
 
                         $params = [
-                            'index' => 'odis_metadata',
+                            'index' => $this->esIndex,
                             'id'    => md5($itemId),
                             'body'  => $body
                         ];
@@ -1011,7 +1013,7 @@ class OdisCrawler
                     unset($graph);
                 } else {
                     $params = [
-                        'index' => 'odis_metadata',
+                        'index' => $this->esIndex,
                         'id'    => md5($url),
                         'body'  => [
                             'url' => $url,
