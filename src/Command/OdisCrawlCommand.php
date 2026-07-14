@@ -36,6 +36,8 @@ use App\Service\OdisCrawler;
 use App\Entity\CrawlStat;
 use Doctrine\ORM\EntityManagerInterface;
 use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\Exception\ClientResponseException;
+use Elastic\Elasticsearch\Exception\ServerResponseException;
 use Elastic\Transport\Exception\NoNodeAvailableException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -136,7 +138,12 @@ class OdisCrawlCommand extends Command
         $commandLine = 'php bin/console ' . $this->getName();
         foreach ($_SERVER['argv'] as $i => $arg) {
             // Skip the binary and command name to avoid duplication
-            if ($i === 0 || $arg === 'bin/console' || $arg === $this->getName()) continue;
+            if ($i === 0
+                || $arg === 'bin/console'
+                || $arg === $this->getName()
+            ) {
+                continue;
+            }
             // Wrap arguments with spaces in quotes
             $commandLine .= ' ' . (str_contains($arg, ' ') ? '"' . $arg . '"' : $arg);
         }
@@ -155,11 +162,22 @@ class OdisCrawlCommand extends Command
 
         // Pre-flight: ensure Elasticsearch is reachable before any ES operation
         try {
+            /*
             if (!$this->esClient->ping()->asBool()) {
                 $io->error('Elasticsearch did not respond to ping. Please ensure it is running and reachable.');
                 return Command::FAILURE;
             }
+            */
+            $this->esClient->ping();
+        }  catch (ClientResponseException $e) {
+            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
+            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
+            return Command::FAILURE;
         } catch (NoNodeAvailableException $e) {
+            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
+            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
+            return Command::FAILURE;
+        } catch (ServerResponseException $e) {
             $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
             $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
             return Command::FAILURE;

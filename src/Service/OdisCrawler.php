@@ -39,8 +39,13 @@ class OdisCrawler
     private RobotsTxtManager $robotsManager;
     private array $visitedSitemaps = [];
 
-    public function __construct(ClientInterface $esClient, LoggerInterface $logger, EntityManagerInterface $entityManager, RobotsTxtManager $robotsManager, ?GuzzleClient $httpClient = null)
-    {
+    public function __construct(
+        ClientInterface $esClient,
+        LoggerInterface $logger,
+        EntityManagerInterface $entityManager,
+        RobotsTxtManager $robotsManager,
+        ?GuzzleClient $httpClient = null
+    ) {
         $this->esClient = $esClient;
         $this->logger = $logger;
         $this->entityManager = $entityManager;
@@ -90,8 +95,10 @@ class OdisCrawler
         }
     }
 
-    public function run(?array $specificIds = null, ?array $skipIds = null): void
-    {
+    public function run(
+        ?array $specificIds = null,
+        ?array $skipIds = null
+    ): void {
         gc_collect_cycles(); // Cleanup memory before start
         $this->visitedSitemaps = [];
         $this->nodesFoundCount = 0;
