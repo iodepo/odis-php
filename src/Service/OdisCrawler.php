@@ -1,4 +1,12 @@
 <?php
+/**
+ * This file is part of the ODIS PHP project.
+ *
+ * @category Service
+ * @package  App\Service
+ * @author   Arno Lambert <a.lambert@unesco.org>
+ * @author  Junie Pro
+ */
 
 namespace App\Service;
 
@@ -12,6 +20,13 @@ use Doctrine\ORM\EntityManagerInterface;
 
 use Symfony\Component\Console\Output\OutputInterface;
 
+/**
+ * Service class for crawling ODIS (Ocean Data and Information System) data sources.
+ * 
+ * This crawler fetches records from the ODIS catalogue, follows sitemaps, 
+ * extracts JSON-LD metadata from HTML pages or JSON files, and indexes 
+ * the processed data into Elasticsearch.
+ */
 class OdisCrawler
 {
     private GuzzleClient $httpClient;
@@ -39,6 +54,16 @@ class OdisCrawler
     private RobotsTxtManager $robotsManager;
     private array $visitedSitemaps = [];
 
+    /**
+     * OdisCrawler constructor.
+     *
+     * @param ClientInterface        $esClient      Elasticsearch client
+     * @param LoggerInterface        $logger        Logger service
+     * @param EntityManagerInterface $entityManager Doctrine entity manager
+     * @param RobotsTxtManager       $robotsManager Service to handle robots.txt rules
+     * @param string                 $esIndex       Target Elasticsearch index name
+     * @param GuzzleClient|null      $httpClient    Optional Guzzle HTTP client
+     */
     public function __construct(
         ClientInterface $esClient,
         LoggerInterface $logger,
@@ -62,21 +87,42 @@ class OdisCrawler
         ]);
     }
 
+    /**
+     * Sets the console output for real-time progress reporting.
+     *
+     * @param OutputInterface|null $output
+     */
     public function setOutput(?OutputInterface $output): void
     {
         $this->output = $output;
     }
 
+    /**
+     * Sets the command line string used to start the crawl (for logging purposes).
+     *
+     * @param string $commandLine
+     */
     public function setCommandLine(string $commandLine): void
     {
         $this->commandLine = $commandLine;
     }
 
+    /**
+     * Sets a limit on the number of data sources to process.
+     *
+     * @param int $limit
+     */
     public function setLimit(int $limit): void
     {
         $this->limit = $limit;
     }
 
+    /**
+     * Internal logging method that sends messages to the logger and console output.
+     *
+     * @param string $message The message to log
+     * @param string $level   Log level (info, warning, error, debug)
+     */
     private function log(string $message, string $level = 'info'): void
     {
         // Don't log extremely long messages to avoid memory issues with Monolog
@@ -97,6 +143,14 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Executes the crawling process.
+     *
+     * @param array|null $specificIds Optional list of data source IDs to crawl specifically
+     * @param array|null $skipIds     Optional list of data source IDs to skip
+     * 
+     * @throws \RuntimeException If index existence check fails
+     */
     public function run(
         ?array $specificIds = null,
         ?array $skipIds = null
@@ -111,8 +165,10 @@ class OdisCrawler
         $this->errorDetails = [];
         $this->lastUpdateTimestamp = time();
 
+        // Initialize crawl statistics entity
         $this->currentStat = new CrawlStat();
         $this->currentStat->setStatus('in_progress');
+        
         // If we are crawling specific IDs, it's a 'targeted' crawl
         if ($specificIds !== null && !empty($specificIds)) {
             $this->currentStat->setType('targeted');
@@ -131,6 +187,7 @@ class OdisCrawler
         $this->entityManager->flush();
 
         try {
+            // Ensure Elasticsearch index is ready
             $this->ensureIndexExists();
         } catch (\Exception $e) {
             $message = "Elasticsearch connection failed: " . $e->getMessage();
@@ -145,10 +202,12 @@ class OdisCrawler
             return;
         }
 
+        // Retrieve data source records from ODIS API
         if ($specificIds !== null && !empty($specificIds)) {
             $records = $this->getRecords();
             $dsIds = $specificIds;
             $this->log("Running targeted crawl for IDs: " . implode(', ', $dsIds));
+            
             // For targeted crawls, we don't update nodesFound to avoid "decreasing" the global count on the dashboard cards
             // but we still want progress bar if we had one.
             // Let's set it to current max so it's stable in the cards.
@@ -161,6 +220,7 @@ class OdisCrawler
             $this->nodesFoundCount = count($dsIds);
         }
 
+        // Filter IDs based on skip list
         if ($skipIds !== null && !empty($skipIds)) {
             $this->log("Skipping IDs: " . implode(', ', $skipIds));
             $dsIds = array_filter($dsIds, fn($id) => !in_array($id, $skipIds));
@@ -170,12 +230,14 @@ class OdisCrawler
             }
         }
 
+        // Apply limit if specified
         if ($this->limit > 0 && empty($specificIds)) {
             $this->log("Applying limit of {$this->limit} datasources");
             $dsIds = array_slice($dsIds, 0, $this->limit);
             $this->nodesFoundCount = count($dsIds);
         }
 
+        // Process each data source
         foreach ($dsIds as $id) {
             $record = $records[$id] ?? null;
             $this->processDatasource($id, $record);
@@ -185,6 +247,11 @@ class OdisCrawler
         $this->saveStats();
     }
 
+    /**
+     * Finalizes and saves crawl statistics to the database.
+     *
+     * @param string $status Final status of the crawl (completed, failed, etc.)
+     */
     private function saveStats(string $status = 'completed'): void
     {
         if ($this->currentStat === null) {
@@ -222,6 +289,11 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Periodically updates the progress of the crawl in the database.
+     * 
+     * Updates occur at most once every 2 seconds to avoid database overhead.
+     */
     private function updateProgress(): void
     {
         // Update DB every 2 seconds to avoid too many writes but keep it "real-time" enough
@@ -254,6 +326,11 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Clears the Elasticsearch index.
+     * 
+     * @throws \RuntimeException If index deletion fails or Elasticsearch is unreachable
+     */
     public function clearIndex(): void
     {
         $params = ['index' => $this->esIndex];
@@ -278,6 +355,11 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Returns the Elasticsearch index mapping configuration.
+     *
+     * @return array
+     */
     public function getIndexMapping(): array
     {
         return [
@@ -396,6 +478,9 @@ class OdisCrawler
         ];
     }
 
+    /**
+     * Creates the Elasticsearch index with the defined mapping.
+     */
     public function createIndex(): void
     {
         $this->esClient->indices()->create([
@@ -407,6 +492,9 @@ class OdisCrawler
         $this->log("Created Elasticsearch index: {$this->esIndex}");
     }
 
+    /**
+     * Ensures that the Elasticsearch index exists, creating it if necessary.
+     */
     private function ensureIndexExists(): void
     {
         $params = ['index' => $this->esIndex];
@@ -415,6 +503,11 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Fetches data source records from the ODIS catalogue API.
+     *
+     * @return array Associative array of records indexed by their ID
+     */
     public function getRecords(): array
     {
         $this->log("Fetching records from {$this->recordsApiUrl}", 'debug');
@@ -443,6 +536,16 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Processes a single data source.
+     * 
+     * It either uses a pre-fetched record or fetches the data source details 
+     * from the ODIS view page. Then it proceeds to process sitemaps or 
+     * JSON/SiteGraph URLs found.
+     *
+     * @param string     $id     Data source ID
+     * @param array|null $record Optional pre-fetched record data
+     */
     private function processDatasource(string $id, ?array $record = null): void
     {
         $this->processedInCurrentDatasource = 0;
@@ -454,7 +557,7 @@ class OdisCrawler
                 'id' => null,
                 'message' => "... and more (too many unique errors logged in previous datasources)"
             ];
-            // Deduplicate
+            // Deduplicate errors
             $temp = [];
             foreach ($this->errorDetails as $error) {
                 $key = is_array($error) ? json_encode($error) : $error;
@@ -475,6 +578,7 @@ class OdisCrawler
         $archUrl = $record['odis_arch_url'] ?? null;
         $archType = strtolower($record['odis_arch_type'] ?? '');
 
+        // If we don't have the architecture URL, we try to scrape it from the ODIS view page
         if (!$archUrl) {
             $url = $this->viewBaseUrl . $id;
             $this->log("Processing ID $id from $url (no pre-fetched record)", 'debug');
@@ -484,6 +588,7 @@ class OdisCrawler
                 $html = (string) $response->getBody();
                 $crawler = new Crawler($html);
 
+                // Look for ODIS-Arch URL and Type in the table
                 $crawler->filter('tr')->each(function (Crawler $node) use (&$archUrl, &$archType) {
                     $labelNode = $node->filter('td')->first();
                     if ($labelNode->count() > 0) {
@@ -508,7 +613,9 @@ class OdisCrawler
             $this->log("Processing ID $id from pre-fetched record", 'debug');
         }
 
+        // If an architecture URL was found, proceed with crawling based on type
         if ($archUrl) {
+            // Respect robots.txt
             if (!$this->robotsManager->isAllowed($archUrl)) {
                 $this->log("URL $archUrl is disallowed by robots.txt", 'warning');
                 return;
@@ -521,6 +628,7 @@ class OdisCrawler
             } elseif ($archType === 'sitegraph' || str_ends_with($archUrl, '.json')) {
                 $this->fetchAndIndexJson($archUrl);
             } else {
+                // Fallback for JSON files if type is not explicit
                 if (str_contains($archUrl, '.json')) {
                     $this->fetchAndIndexJson($archUrl);
                 }
@@ -530,14 +638,21 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Processes a sitemap XML file, following nested sitemaps or crawling URLs.
+     *
+     * @param string $sitemapUrl URL of the sitemap
+     */
     private function processSitemap(string $sitemapUrl): void
     {
+        // Prevent infinite loops in case of circular sitemap references
         if (in_array($sitemapUrl, $this->visitedSitemaps)) {
             $this->log("Sitemap already visited: $sitemapUrl. Skipping to prevent infinite loop.", 'warning');
             return;
         }
         $this->visitedSitemaps[] = $sitemapUrl;
 
+        // Respect robots.txt
         if (!$this->robotsManager->isAllowed($sitemapUrl)) {
             $this->log("Sitemap URL $sitemapUrl is disallowed by robots.txt", 'warning');
             return;
@@ -551,6 +666,7 @@ class OdisCrawler
             try {
                 $response = $this->httpClient->get($sitemapUrl);
             } catch (\GuzzleHttp\Exception\ClientException $ce) {
+                // Special handling for common GeoNetwork sitemap location misconfigurations
                 if ($ce->getResponse()->getStatusCode() === 404 && str_ends_with($sitemapUrl, '/assets/sitemap.xml')) {
                     $fallbackUrl = str_replace('/assets/sitemap.xml', '/sitemap.xml', $sitemapUrl);
                     $this->log("Sitemap 404 at $sitemapUrl. Attempting fallback: $fallbackUrl", 'warning');
@@ -564,6 +680,7 @@ class OdisCrawler
             $xml = (string) $response->getBody();
             $contentType = $response->getHeaderLine('Content-Type');
 
+            // If the sitemap doesn't look like XML, it might be a direct content page
             if (!str_contains($contentType, 'xml') && !str_starts_with(trim($xml), '<?xml') && !str_starts_with(trim($xml), '<sitemapindex') && !str_starts_with(trim($xml), '<urlset')) {
                 $this->log("Sitemap URL $sitemapUrl returned non-XML content ($contentType). Treating as potential JSON-LD page.", 'warning');
                 $this->fetchAndIndexJson($sitemapUrl);
@@ -573,12 +690,13 @@ class OdisCrawler
             try {
                 $sitemap = new \SimpleXMLElement($xml);
             } catch (\Exception $e) {
-                // If XML parsing fails, but it's not a clear 404, maybe it's a content page despite our checks
+                // If XML parsing fails, maybe it's a content page despite our checks
                 $this->log("Failed to parse sitemap $sitemapUrl as XML. Attempting to treat as content page.", 'debug');
                 $this->fetchAndIndexJson($sitemapUrl);
                 return;
             }
             
+            // Register namespaces for XPath queries
             $namespaces = $sitemap->getNamespaces(true);
             $nsPrefix = '';
             if (isset($namespaces[''])) {
@@ -586,7 +704,7 @@ class OdisCrawler
                 $nsPrefix = 's:';
             }
 
-            // Handle Sitemap Index
+            // Handle Sitemap Index (list of other sitemaps)
             if ($sitemap->getName() === 'sitemapindex') {
                 $locs = $sitemap->xpath("//{$nsPrefix}loc");
                 foreach ($locs as $loc) {
@@ -598,15 +716,14 @@ class OdisCrawler
                 return;
             }
 
-            // Use xpath to find all <loc> elements. We do it in chunks if possible but SimpleXML is not great for that.
-            // For now, let's at least clear the SimpleXMLElement if it gets too large (not really possible)
-            // But we can process the locs list more carefully
+            // Handle Standard Sitemap (list of URLs)
             $locs = $sitemap->xpath("//{$nsPrefix}loc");
             
             // Release XML string memory
             unset($xml);
             
             foreach ($locs as $loc) {
+                // Respect per-datasource limit
                 if ($this->limit > 0 && $this->processedInCurrentDatasource >= $this->limit) {
                     $this->log("Limit of {$this->limit} reached for datasource {$this->currentDatasourceId}. Skipping remaining sitemap URLs.", 'info');
                     break;
@@ -614,9 +731,11 @@ class OdisCrawler
                 $url = trim((string) $loc);
                 if (empty($url)) continue;
                 $this->fetchAndIndexJson($url);
-                // Explicitly cleanup memory in sitemap loop
+                
+                // Explicitly cleanup memory in sitemap loop to prevent OOM
                 gc_collect_cycles();
             }
+            
             // Release sitemap object memory
             unset($sitemap);
             unset($locs);
@@ -633,6 +752,15 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Normalizes data for safe indexing in Elasticsearch.
+     * 
+     * Wraps scalar values in objects to avoid mapping conflicts under the 'data' field,
+     * which is configured as an object type in the index mapping.
+     *
+     * @param array $data The data to normalize
+     * @return array Normalized data
+     */
     public function normalizeDataForSafeIndexing(array $data): array
     {
         foreach ($data as $key => $value) {
@@ -662,6 +790,14 @@ class OdisCrawler
         return $data;
     }
 
+    /**
+     * Normalizes fields that can be either strings or arrays/objects into a consistent array of objects.
+     * 
+     * This is useful for fields like 'creator', 'author', etc., which are often inconsistently structured.
+     *
+     * @param mixed $value The field value to normalize
+     * @return array|null Normalized array of objects, or null
+     */
     private function normalizePolymorphicField($value): ?array
     {
         if ($value === null) {
@@ -707,6 +843,12 @@ class OdisCrawler
         return [['name' => (string)$value]];
     }
 
+    /**
+     * Provides a human-readable solution for common crawler/Elasticsearch errors.
+     *
+     * @param string $message The error message
+     * @return string Suggested solution
+     */
     private function getSolutionForError(string $message): string
     {
         if (str_contains($message, 'No alive nodes') || str_contains($message, 'NoNodeAvailableException')) {
@@ -750,8 +892,17 @@ class OdisCrawler
         return "Unknown error occurred during processing. Solution: Check the crawler logs for more details.";
     }
 
+    /**
+     * Fetches a URL and indexes the JSON-LD data found within.
+     * 
+     * Handles both direct JSON responses and HTML pages containing JSON-LD scripts.
+     * Supports SiteGraphs and top-level JSON arrays by expanding them.
+     *
+     * @param string $url The URL to fetch and index
+     */
     public function fetchAndIndexJson(string $url): void
     {
+        // Respect robots.txt
         if (!$this->robotsManager->isAllowed($url)) {
             $this->log("URL $url is disallowed by robots.txt", 'warning');
             return;
@@ -761,16 +912,18 @@ class OdisCrawler
         $this->updateProgress();
         $this->pagesCrawledCount++;
         $this->processedInCurrentDatasource++;
+        
         if ($this->currentStat) {
             $this->currentStat->incrementEntryRecordsFound();
         }
+        
         $this->log("Fetching data from $url", 'debug');
         try {
-            // Use streaming to avoid loading the entire body into memory if it's too large
+            // Use streaming to avoid loading massive bodies into memory all at once
             $response = $this->httpClient->get($url, ['stream' => true]);
             $bodyStream = $response->getBody();
             
-            // If content length is known and > 50MB, we should be extra careful
+            // Check content length if provided by the server
             $contentLength = (int) $response->getHeaderLine('Content-Length');
             if ($contentLength > 50 * 1024 * 1024) {
                 $this->log("Large response detected ($contentLength bytes). Processing with caution.", 'warning');
@@ -778,16 +931,16 @@ class OdisCrawler
 
             $contentType = $response->getHeaderLine('Content-Type');
             
-            // To process the body we still need it as a string for json_decode or extractJsonLdFromHtml
-            // but we can try to minimize memory spikes
+            // Get content and try to free the stream ASAP
             $body = $bodyStream->getContents();
             
             $data = null;
             $this->log("Processing body with content type: $contentType", 'debug');
+            
+            // Case 1: JSON or JSON-LD response
             if (str_contains($contentType, 'application/json') || str_contains($contentType, 'application/ld+json')) {
-                // If it's JSON, it might still have leading/trailing whitespace or UTF-8 BOM
                 $body = trim($body);
-                // Remove UTF-8 BOM if present
+                // Remove UTF-8 BOM (Byte Order Mark) if present
                 if (str_starts_with($body, "\xEF\xBB\xBF")) {
                     $body = substr($body, 3);
                 }
@@ -826,10 +979,13 @@ class OdisCrawler
                         }
                     }
                 }
-            } elseif (str_contains($contentType, 'text/html')) {
+            } 
+            // Case 2: HTML response
+            elseif (str_contains($contentType, 'text/html')) {
                 $data = $this->extractJsonLdFromHtml($body);
-            } else {
-                // Fallback: try JSON first, then HTML if it looks like it might have JSON-LD
+            } 
+            // Case 3: Unknown content type, attempt both
+            else {
                 $data = json_decode($body, true);
                 if (!$data) {
                     $data = $this->extractJsonLdFromHtml($body);
@@ -837,24 +993,21 @@ class OdisCrawler
                 unset($body); // Free memory immediately
             }
             
+            // Process the extracted data (expand graphs/lists if necessary)
             if ($data) {
-                // Treat as a sitegraph in the following cases:
-                // - JSON-LD object with an '@graph' array (any size, including 1)
-                // - Top-level JSON array (list) of items
+                // Determine if this is a SiteGraph or a collection of items
             $isTopLevelList = is_array($data) && array_is_list($data);
             $isGraph = (isset($data['@graph']) && is_array($data['@graph'])) || 
                        (isset($data['itemListElement']) && is_array($data['itemListElement'])) || 
                        (isset($data['dataset']) && is_array($data['dataset'])) ||
                        $isTopLevelList;
             
-            // Special case for ODIS sitegraphs that might be wrapped in @graph but have other keys
-            // or where @graph is not at the top level, or it's a list with different keys.
+            // Special case for ODIS sitegraphs that might use different wrapping keys
             if (!$isGraph && isset($data['graph']) && is_array($data['graph'])) {
                 $isGraph = true;
                 $graph = $data['graph'];
             } elseif (!$isGraph && str_ends_with($url, '.json') && count($data) > 0 && !isset($data['@type'])) {
-                // If it's a large associative array with many numeric keys or just many keys
-                // and no @type, it's likely a collection.
+                // If it's a large associative array with many keys and no @type, it's likely a collection.
                 $isGraph = true;
                 $graph = $data;
             } elseif ($isGraph) {
@@ -1203,6 +1356,15 @@ class OdisCrawler
         }
     }
 
+    /**
+     * Extracts JSON-LD metadata from an HTML string.
+     * 
+     * Supports multiple script tags, handles common syntax errors in source data, 
+     * and expands graph/list structures.
+     *
+     * @param string $html The HTML content
+     * @return array|null Array of extracted JSON-LD objects, or null
+     */
     private function extractJsonLdFromHtml(string $html): ?array
     {
         try {
