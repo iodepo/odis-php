@@ -3,8 +3,11 @@
 namespace App\Controller;
 
 use Elastic\Elasticsearch\ClientInterface;
+use Elastic\Elasticsearch\Exception\ClientResponseException;
+use Elastic\Elasticsearch\Exception\ServerResponseException;
 use Elastic\Transport\Exception\NoNodeAvailableException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -23,20 +26,41 @@ class SearchController extends AbstractController
     #[Route('/search', name: 'app_search')]
     public function search(Request $request): Response
     {
+        // Check if Elasticsearch is alive
         try {
-            // Check if Elasticsearch is alive
-            $this->esClient->ping();
-        } catch (NoNodeAvailableException $e) {
+            $response = $this->esClient->info();
+            if ($response->getStatusCode() !== 200) {
+                return $this->render('search/error.html.twig', [
+                    'error' => 'Elasticsearch returned an unexpected status code: ' . $response->getStatusCode(),
+                    'solution' => 'Please check the ELASTICSEARCH_URL in your configuration and ensure the Elasticsearch service is running.'
+                ]);
+            }
+        } catch (ClientResponseException $e) {
+            if ($e->getResponse()->getStatusCode() === 401) {
+                return $this->render('search/error.html.twig', [
+                    'error' => 'Elasticsearch authentication failed.',
+                    'solution' => 'Please check the ELASTICSEARCH_USER and ELASTICSEARCH_PASSWORD in your .env.local and ensure the credentials are correct.'
+                ]);
+            } else {
+                return $this->render('search/error.html.twig', [
+                    'error' => 'Elasticsearch server error: ' . $e->getMessage(),
+                    'solution' => 'Please check the ELASTICSEARCH_URL in your configuration and ensure the Elasticsearch service is running.'
+                ]);
+            }
+        } catch (NoNodeAvailableException|ServerResponseException $e) {
             return $this->render('search/error.html.twig', [
-                'error' => 'Elasticsearch is currently unreachable.',
+                'error' => 'Elasticsearch is currently unreachable: ' . $e->getMessage(),
                 'solution' => 'Please check the ELASTICSEARCH_URL in your configuration and ensure the Elasticsearch service is running.'
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->render('search/error.html.twig', [
-                'error' => 'An error occurred while connecting to the search engine.',
-                'solution' => $e->getMessage()
+                'error' => 'Elasticsearch is currently unreachable: ' . $e->getMessage(),
+                'solution' => 'Please check the ELASTICSEARCH_URL in your configuration and ensure the Elasticsearch service is running.'
             ]);
         }
+
+
+
 
         $query = $request->query->get('q', '');
         $sort = $request->query->get('sort', '_score');

@@ -162,22 +162,20 @@ class OdisCrawlCommand extends Command
 
         // Pre-flight: ensure Elasticsearch is reachable before any ES operation
         try {
-            /*
-            if (!$this->esClient->ping()->asBool()) {
-                $io->error('Elasticsearch did not respond to ping. Please ensure it is running and reachable.');
+            $response = $this->esClient->info();
+            if ($response->getStatusCode() !== 200) {
+                $io->error('Elasticsearch returned an unexpected status code: ' . $response->getStatusCode());
                 return Command::FAILURE;
             }
-            */
-            $this->esClient->ping();
-        }  catch (ClientResponseException $e) {
-            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
-            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
+        } catch (ClientResponseException $e) {
+            $io->error('Elasticsearch error: ' . $e->getMessage());
+            if ($e->getResponse()->getStatusCode() === 401) {
+                $io->writeln('Hint: Authentication failed. Check ELASTICSEARCH_USER and ELASTICSEARCH_PASSWORD in your .env.local.');
+            } else {
+                $io->writeln('Hint: Check ELASTICSEARCH_URL and that the service is up.');
+            }
             return Command::FAILURE;
-        } catch (NoNodeAvailableException $e) {
-            $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
-            $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
-            return Command::FAILURE;
-        } catch (ServerResponseException $e) {
+        }  catch (NoNodeAvailableException|ServerResponseException $e) {
             $io->error('Elasticsearch is unreachable: ' . $e->getMessage());
             $io->writeln('Hint: Check ELASTICSEARCH_URL/USER/PASSWORD in your .env.local and that the service is up.');
             return Command::FAILURE;
