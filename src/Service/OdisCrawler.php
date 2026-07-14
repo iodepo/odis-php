@@ -267,7 +267,8 @@ class OdisCrawler
                 usleep(500000); // 500ms
             }
         } catch (NoNodeAvailableException $e) {
-            $message = "Elasticsearch connection failed: " . $e->getMessage() . ". Solution: Please check your ELASTICSEARCH_URL in .env.local and ensure the Elasticsearch service is running.";
+            $message = "Elasticsearch connection failed: " . $e->getMessage();
+            $message .= 'Solution: Please check your ELASTICSEARCH_URL in .env.local and ensure the Elasticsearch service is running.';
             $this->log($message, 'error');
             throw new \RuntimeException($message, 0, $e);
         } catch (\Exception $e) {
